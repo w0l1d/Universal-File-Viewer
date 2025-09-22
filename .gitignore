@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime dependencies (downloaded by setup)
+lib/js-yaml.min.js
+lib/highlight.min.js
+lib/highlight.min.css
+lib/json-viewer.bundle.js
+
+# Build artifacts
+dist/
+build/
+*.xpi
+*.zip
+*.tar.gz
+*.tgz
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+atlassian-ide-plugin.xml
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+*.swp
+*.swo
+*~
+
+# Test coverage
+coverage/
+.nyc_output/
+*.lcov
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Logs
+logs/
+*.log
+
+# Firefox extension temporary files
+web-ext-artifacts/
+
+# OS generated files
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
