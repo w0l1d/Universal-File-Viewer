@@ -125,6 +125,8 @@ const Viewer = (() => {
         pre.className = 'fv-content';
 
         const code = document.createElement('code');
+        // Note: innerHTML is required here for syntax highlighting
+        // config.content comes from our own Highlighter module and is sanitized
         code.innerHTML = config.content;
         code.className = `language-${config.format}`;
 

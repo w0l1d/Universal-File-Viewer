@@ -56,25 +56,49 @@
 
     // Display content in the browser
     function displayContent(content, url, contentType) {
-        // Clear the page
-        document.head.innerHTML = `
-            <meta charset="utf-8">
-            <title>File Viewer - ${url.split('/').pop()}</title>
-        `;
+        // Clear the page and set up head elements safely
+        document.head.innerHTML = '';
 
-        // Create a pre element to display the content
-        document.body.innerHTML = `
-            <div style="font-family: monospace; padding: 20px; background: #f5f5f5; min-height: 100vh;">
-                <div style="background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);">
-                    <div style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;">
-                        <strong>File Viewer</strong> - ${url.split('/').pop()}
-                        <br>
-                        <small style="color: #666;">Content-Type: ${contentType}</small>
-                    </div>
-                    <pre id="file-content" style="white-space: pre-wrap; word-wrap: break-word; margin: 0; font-size: 14px; line-height: 1.4;">${escapeHtml(content)}</pre>
-                </div>
-            </div>
-        `;
+        const meta = document.createElement('meta');
+        meta.setAttribute('charset', 'utf-8');
+        document.head.appendChild(meta);
+
+        const title = document.createElement('title');
+        title.textContent = `File Viewer - ${url.split('/').pop()}`;
+        document.head.appendChild(title);
+
+        // Create page structure safely using DOM methods
+        document.body.innerHTML = '';
+
+        const outerDiv = document.createElement('div');
+        outerDiv.style.cssText = 'font-family: monospace; padding: 20px; background: #f5f5f5; min-height: 100vh;';
+
+        const innerDiv = document.createElement('div');
+        innerDiv.style.cssText = 'background: white; padding: 15px; border-radius: 5px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.style.cssText = 'margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #ddd;';
+
+        const strong = document.createElement('strong');
+        strong.textContent = 'File Viewer';
+        headerDiv.appendChild(strong);
+        headerDiv.appendChild(document.createTextNode(' - ' + url.split('/').pop()));
+        headerDiv.appendChild(document.createElement('br'));
+
+        const small = document.createElement('small');
+        small.style.color = '#666';
+        small.textContent = 'Content-Type: ' + contentType;
+        headerDiv.appendChild(small);
+
+        const pre = document.createElement('pre');
+        pre.id = 'file-content';
+        pre.style.cssText = 'white-space: pre-wrap; word-wrap: break-word; margin: 0; font-size: 14px; line-height: 1.4;';
+        pre.textContent = content;
+
+        innerDiv.appendChild(headerDiv);
+        innerDiv.appendChild(pre);
+        outerDiv.appendChild(innerDiv);
+        document.body.appendChild(outerDiv);
 
         // Set the document content type to trigger our main extension
         try {
@@ -103,21 +127,42 @@
 
     // Show error message
     function showError(error, url) {
-        document.body.innerHTML = `
-            <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 50px auto;">
-                <h2 style="color: #e74c3c;">⚠️ File Viewer Error</h2>
-                <p><strong>Failed to fetch:</strong> ${url.split('/').pop()}</p>
-                <p><strong>Error:</strong> ${error.message}</p>
-                <p style="color: #666; font-size: 14px;">
-                    This might be due to CORS restrictions or the file being unavailable.
-                    Try opening the file directly or check your network connection.
-                </p>
-                <button onclick="window.location.reload()"
-                        style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">
-                    Retry
-                </button>
-            </div>
-        `;
+        document.body.innerHTML = '';
+
+        const container = document.createElement('div');
+        container.style.cssText = 'font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: 50px auto;';
+
+        const heading = document.createElement('h2');
+        heading.style.color = '#e74c3c';
+        heading.textContent = '⚠️ File Viewer Error';
+        container.appendChild(heading);
+
+        const failedPara = document.createElement('p');
+        const strong1 = document.createElement('strong');
+        strong1.textContent = 'Failed to fetch:';
+        failedPara.appendChild(strong1);
+        failedPara.appendChild(document.createTextNode(' ' + url.split('/').pop()));
+        container.appendChild(failedPara);
+
+        const errorPara = document.createElement('p');
+        const strong2 = document.createElement('strong');
+        strong2.textContent = 'Error:';
+        errorPara.appendChild(strong2);
+        errorPara.appendChild(document.createTextNode(' ' + error.message));
+        container.appendChild(errorPara);
+
+        const helpPara = document.createElement('p');
+        helpPara.style.cssText = 'color: #666; font-size: 14px;';
+        helpPara.textContent = 'This might be due to CORS restrictions or the file being unavailable. Try opening the file directly or check your network connection.';
+        container.appendChild(helpPara);
+
+        const retryButton = document.createElement('button');
+        retryButton.textContent = 'Retry';
+        retryButton.style.cssText = 'padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;';
+        retryButton.addEventListener('click', () => window.location.reload());
+        container.appendChild(retryButton);
+
+        document.body.appendChild(container);
     }
 
     // HTML escape function

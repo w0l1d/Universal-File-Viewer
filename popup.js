@@ -66,12 +66,22 @@ function loadStatistics() {
         const stats = result.stats || {};
         const statsDiv = document.getElementById('stats');
 
+        statsDiv.textContent = '';
+
         if (Object.keys(stats).length === 0) {
-            statsDiv.innerHTML = '<div class="stats-item">No files viewed yet</div>';
+            const noFilesDiv = document.createElement('div');
+            noFilesDiv.className = 'stats-item';
+            noFilesDiv.textContent = 'No files viewed yet';
+            statsDiv.appendChild(noFilesDiv);
             return;
         }
 
-        let html = '<div class="stats-item"><strong>Files viewed:</strong></div>';
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'stats-item';
+        const strong = document.createElement('strong');
+        strong.textContent = 'Files viewed:';
+        headerDiv.appendChild(strong);
+        statsDiv.appendChild(headerDiv);
 
         // Sort by count
         const sorted = Object.entries(stats)
@@ -79,16 +89,19 @@ function loadStatistics() {
             .sort((a, b) => b[1] - a[1]);
 
         sorted.forEach(([format, count]) => {
-            html += `<div class="stats-item">${format.toUpperCase()}: ${count} files</div>`;
+            const statDiv = document.createElement('div');
+            statDiv.className = 'stats-item';
+            statDiv.textContent = `${format.toUpperCase()}: ${count} files`;
+            statsDiv.appendChild(statDiv);
         });
 
         if (stats.lastUsed) {
             const date = new Date(stats.lastUsed);
-            html += `<div class="stats-item">Last used: ${date.toLocaleDateString()}</div>`;
+            const lastUsedDiv = document.createElement('div');
+            lastUsedDiv.className = 'stats-item';
+            lastUsedDiv.textContent = `Last used: ${date.toLocaleDateString()}`;
+            statsDiv.appendChild(lastUsedDiv);
         }
-
-        statsDiv.textContent = '';
-        statsDiv.insertAdjacentHTML('beforeend', html);
     });
 }
 
