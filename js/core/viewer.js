@@ -62,29 +62,53 @@ const Viewer = (() => {
         const header = document.createElement('div');
         header.className = 'fv-header';
 
-        header.innerHTML = `
-      <div class="fv-header-left">
-        <span class="fv-format-badge">${config.format.toUpperCase()}</span>
-        <span class="fv-filename">${getFilename()}</span>
-      </div>
-      <div class="fv-header-controls">
-        <button class="fv-btn fv-btn-view" data-action="toggle-view" title="Toggle view">
-          <span class="fv-icon">👁</span>
-          <span class="fv-btn-text">Raw</span>
-        </button>
-        <button class="fv-btn fv-btn-copy" data-action="copy" title="Copy to clipboard">
-          <span class="fv-icon">📋</span>
-          <span class="fv-btn-text">Copy</span>
-        </button>
-        <button class="fv-btn fv-btn-download" data-action="download" title="Download formatted">
-          <span class="fv-icon">💾</span>
-          <span class="fv-btn-text">Download</span>
-        </button>
-        <button class="fv-btn fv-btn-theme" data-action="toggle-theme" title="Toggle theme">
-          <span class="fv-icon">🎨</span>
-        </button>
-      </div>
-    `;
+        const headerLeft = document.createElement('div');
+        headerLeft.className = 'fv-header-left';
+
+        const formatBadge = document.createElement('span');
+        formatBadge.className = 'fv-format-badge';
+        formatBadge.textContent = config.format.toUpperCase();
+
+        const filename = document.createElement('span');
+        filename.className = 'fv-filename';
+        filename.textContent = getFilename();
+
+        headerLeft.appendChild(formatBadge);
+        headerLeft.appendChild(filename);
+
+        const headerControls = document.createElement('div');
+        headerControls.className = 'fv-header-controls';
+
+        const buttons = [
+            { action: 'toggle-view', icon: '👁', text: 'Raw', title: 'Toggle view', className: 'fv-btn-view' },
+            { action: 'copy', icon: '📋', text: 'Copy', title: 'Copy to clipboard', className: 'fv-btn-copy' },
+            { action: 'download', icon: '💾', text: 'Download', title: 'Download formatted', className: 'fv-btn-download' },
+            { action: 'toggle-theme', icon: '🎨', text: '', title: 'Toggle theme', className: 'fv-btn-theme' }
+        ];
+
+        buttons.forEach(btn => {
+            const button = document.createElement('button');
+            button.className = `fv-btn ${btn.className}`;
+            button.dataset.action = btn.action;
+            button.title = btn.title;
+
+            const icon = document.createElement('span');
+            icon.className = 'fv-icon';
+            icon.textContent = btn.icon;
+            button.appendChild(icon);
+
+            if (btn.text) {
+                const text = document.createElement('span');
+                text.className = 'fv-btn-text';
+                text.textContent = btn.text;
+                button.appendChild(text);
+            }
+
+            headerControls.appendChild(button);
+        });
+
+        header.appendChild(headerLeft);
+        header.appendChild(headerControls);
 
         return header;
     }
@@ -127,11 +151,22 @@ const Viewer = (() => {
         const lines = (config.raw.match(/\n/g) || []).length + 1;
         const size = new Blob([config.raw]).size;
 
-        statusBar.innerHTML = `
-      <span class="fv-status-item">Lines: ${lines.toLocaleString()}</span>
-      <span class="fv-status-item">Size: ${formatFileSize(size)}</span>
-      ${config.metadata ? `<span class="fv-status-item">${formatMetadata(config.metadata)}</span>` : ''}
-    `;
+        const linesSpan = document.createElement('span');
+        linesSpan.className = 'fv-status-item';
+        linesSpan.textContent = `Lines: ${lines.toLocaleString()}`;
+        statusBar.appendChild(linesSpan);
+
+        const sizeSpan = document.createElement('span');
+        sizeSpan.className = 'fv-status-item';
+        sizeSpan.textContent = `Size: ${formatFileSize(size)}`;
+        statusBar.appendChild(sizeSpan);
+
+        if (config.metadata) {
+            const metadataSpan = document.createElement('span');
+            metadataSpan.className = 'fv-status-item';
+            metadataSpan.textContent = formatMetadata(config.metadata);
+            statusBar.appendChild(metadataSpan);
+        }
 
         return statusBar;
     }
@@ -143,10 +178,16 @@ const Viewer = (() => {
     function createErrorBar(error) {
         const errorBar = document.createElement('div');
         errorBar.className = 'fv-error-bar';
-        errorBar.innerHTML = `
-      <span class="fv-error-icon">⚠️</span>
-      <span class="fv-error-message">${error}</span>
-    `;
+        const errorIcon = document.createElement('span');
+        errorIcon.className = 'fv-error-icon';
+        errorIcon.textContent = '⚠️';
+
+        const errorMessage = document.createElement('span');
+        errorMessage.className = 'fv-error-message';
+        errorMessage.textContent = error;
+
+        errorBar.appendChild(errorIcon);
+        errorBar.appendChild(errorMessage);
         return errorBar;
     }
 

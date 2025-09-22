@@ -87,7 +87,8 @@ function loadStatistics() {
             html += `<div class="stats-item">Last used: ${date.toLocaleDateString()}</div>`;
         }
 
-        statsDiv.innerHTML = html;
+        statsDiv.textContent = '';
+        statsDiv.insertAdjacentHTML('beforeend', html);
     });
 }
 

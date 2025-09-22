@@ -3,8 +3,8 @@
   "name": "Universal File Viewer",
   "version": "1.0.0",
   "description": "Beautify and highlight various file formats in browser",
-  "author": "Your Name",
-  "homepage_url": "https://github.com/yourusername/universal-file-viewer",
+  "author": "Walid Ahdouf",
+  "homepage_url": "https://github.com/w0l1d/universal-file-viewer",
 
   "icons": {
     "48": "icons/icon-48.png",
