@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Universal File Viewer</title>
+    <link rel="stylesheet" href="css/viewer.css">
+    <link rel="stylesheet" href="lib/highlight.min.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            min-height: 100vh;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fff;
+            margin: 20px auto;
+            padding: 20px;
+            max-width: 800px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #e74c3c;
+        }
+
+        .viewer-container {
+            background: #fff;
+            margin: 20px auto;
+            max-width: 1200px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .viewer-header {
+            background: #34495e;
+            color: white;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .viewer-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            display: inline-block;
+            transition: background-color 0.2s;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .content-container {
+            padding: 0;
+            position: relative;
+        }
+
+        #file-content {
+            margin: 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            padding: 20px;
+            background: transparent;
+        }
+
+        /* Override highlight.js styles for better integration */
+        #file-content .hljs {
+            background: transparent;
+            padding: 0;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+        }
+
+        /* Style JSON viewer component */
+        #tree-viewer {
+            padding: 20px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        /* Customize JSON viewer colors */
+        json-viewer {
+            --background-color: transparent;
+            --color: #333;
+            --string-color: #22863a;
+            --number-color: #005cc5;
+            --boolean-color: #d73a49;
+            --null-color: #6f42c1;
+            --property-color: #032f62;
+            --bracket-color: #586069;
+            --collapsed-color: #586069;
+            --highlight-color: #fffbdd;
+        }
+    </style>
+</head>
+<body>
+    <div id="loading" class="loading">
+        <div class="spinner"></div>
+        <p>Loading file...</p>
+    </div>
+
+    <div id="error" class="error" style="display: none;">
+        <h3>⚠️ Error Loading File</h3>
+        <p id="error-message"></p>
+        <button class="btn btn-primary" data-action="retry">Retry</button>
+        <a href="#" id="direct-link" class="btn btn-secondary" target="_blank">Open Direct Link</a>
+    </div>
+
+    <div id="viewer" class="viewer-container" style="display: none;">
+        <div class="viewer-header">
+            <div>
+                <h2 id="file-name" style="margin: 0; font-size: 18px;">File Viewer</h2>
+                <small id="file-info" style="opacity: 0.8;"></small>
+            </div>
+            <div class="viewer-controls">
+                <button class="btn btn-secondary" id="toggle-view-btn" style="display: none;">Tree View</button>
+                <button class="btn btn-secondary" id="expand-all-btn" style="display: none;">Expand All</button>
+                <button class="btn btn-secondary" id="collapse-all-btn" style="display: none;">Collapse All</button>
+                <button class="btn btn-secondary" id="copy-btn">Copy</button>
+                <a href="#" id="download-btn" class="btn btn-primary" download>Download</a>
+                <a href="#" id="raw-link" class="btn btn-secondary" target="_blank">View Raw</a>
+            </div>
+        </div>
+        <div class="content-container">
+            <json-viewer id="tree-viewer" style="display: none;"></json-viewer>
+            <pre id="file-content"></pre>
+        </div>
+    </div>
+
+    <script src="lib/js-yaml.min.js"></script>
+    <script src="lib/highlight.min.js"></script>
+    <script src="lib/json-viewer.bundle.js"></script>
+    <script src="js/core/detector.js"></script>
+    <script src="js/core/formatter.js"></script>
+    <script src="js/core/highlighter.js"></script>
+    <script src="js/core/viewer.js"></script>
+    <script src="js/formats/json.js"></script>
+    <script src="js/formats/yaml.js"></script>
+    <script src="js/formats/xml.js"></script>
+    <script src="js/formats/csv.js"></script>
+    <script src="js/formats/toml.js"></script>
+    <script src="js/viewer-page.js"></script>
+</body>
+</html>

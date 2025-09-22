@@ -1,0 +1,57 @@
+{
+  "name": "universal-file-viewer",
+  "version": "1.0.0",
+  "description": "Extensible Firefox addon for beautifying and highlighting various file formats",
+  "author": "Walid Ahdouf",
+  "license": "MIT",
+  "scripts": {
+    "setup": "node setup.js",
+    "build": "web-ext build --source-dir=. --artifacts-dir=dist --ignore-files='test/**' 'coverage/**' 'node_modules/**' '.*' '*.md' 'Makefile' 'package*.json' 'jest.config.js' 'setup.js'",
+    "start": "web-ext run --source-dir=.",
+    "lint": "web-ext lint --source-dir=.",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "clean": "rm -rf dist coverage node_modules lib/*.min.js",
+    "package": "npm run setup && npm run build",
+    "production": "npm run setup && npm run lint && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "web-ext": "^7.0.0",
+    "jest": "^29.0.0",
+    "eslint": "^8.0.0"
+  },
+  "webExt": {
+    "sourceDir": "./",
+    "artifactsDir": "./dist",
+    "ignoreFiles": [
+      "node_modules",
+      "dist",
+      "*.md",
+      ".*",
+      "package*.json",
+      "setup.js",
+      "test"
+    ]
+  },
+  "directories": {
+    "lib": "lib",
+    "css": "css",
+    "js": "js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/universal-file-viewer"
+  },
+  "keywords": [
+    "firefox",
+    "extension",
+    "addon",
+    "json",
+    "yaml",
+    "xml",
+    "formatter",
+    "beautifier",
+    "syntax-highlighting"
+  ]
+}

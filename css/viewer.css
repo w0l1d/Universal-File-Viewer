@@ -1,0 +1,380 @@
+/* Core layout and theme variables */
+.fv-container {
+    --fv-bg-primary: #1e1e1e;
+    --fv-bg-secondary: #252526;
+    --fv-bg-tertiary: #2d2d30;
+    --fv-border: #3e3e42;
+    --fv-text: #cccccc;
+    --fv-text-dim: #858585;
+
+    /* Syntax colors */
+    --fv-syntax-string: #ce9178;
+    --fv-syntax-number: #b5cea8;
+    --fv-syntax-boolean: #569cd6;
+    --fv-syntax-null: #569cd6;
+    --fv-syntax-key: #9cdcfe;
+    --fv-syntax-keyword: #c586c0;
+    --fv-syntax-comment: #6a9955;
+    --fv-syntax-operator: #d4d4d4;
+    --fv-syntax-punctuation: #808080;
+    --fv-syntax-variable: #c586c0;
+    --fv-syntax-function: #dcdcaa;
+    --fv-syntax-class: #4ec9b0;
+    --fv-syntax-tag: #569cd6;
+    --fv-syntax-attribute: #9cdcfe;
+    --fv-syntax-error: #f48771;
+
+    /* UI colors */
+    --fv-accent: #007acc;
+    --fv-accent-hover: #0098ff;
+    --fv-success: #4ec9b0;
+    --fv-warning: #ce9178;
+    --fv-error: #f48771;
+
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    font-family: 'Monaco', 'Menlo', 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.5;
+    background: var(--fv-bg-primary);
+    color: var(--fv-text);
+}
+
+/* Light theme */
+.fv-container[data-theme="light"] {
+    --fv-bg-primary: #ffffff;
+    --fv-bg-secondary: #f3f3f3;
+    --fv-bg-tertiary: #ececec;
+    --fv-border: #e0e0e0;
+    --fv-text: #333333;
+    --fv-text-dim: #6e6e6e;
+
+    --fv-syntax-string: #a31515;
+    --fv-syntax-number: #098658;
+    --fv-syntax-boolean: #0000ff;
+    --fv-syntax-null: #0000ff;
+    --fv-syntax-key: #0451a5;
+    --fv-syntax-keyword: #af00db;
+    --fv-syntax-comment: #008000;
+    --fv-syntax-operator: #333333;
+    --fv-syntax-punctuation: #999999;
+    --fv-syntax-variable: #af00db;
+    --fv-syntax-function: #795e26;
+    --fv-syntax-class: #267f99;
+    --fv-syntax-tag: #800000;
+    --fv-syntax-attribute: #0451a5;
+    --fv-syntax-error: #cd3131;
+
+    --fv-accent: #0066cc;
+    --fv-accent-hover: #0052a3;
+    --fv-success: #267f99;
+    --fv-warning: #b87400;
+    --fv-error: #cd3131;
+}
+
+/* Header */
+.fv-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background: var(--fv-bg-tertiary);
+    border-bottom: 1px solid var(--fv-border);
+    backdrop-filter: blur(10px);
+}
+
+.fv-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.fv-format-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    background: var(--fv-accent);
+    color: white;
+    border-radius: 3px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.fv-filename {
+    color: var(--fv-text);
+    font-weight: 500;
+}
+
+.fv-header-controls {
+    display: flex;
+    gap: 8px;
+}
+
+/* Buttons */
+.fv-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--fv-bg-secondary);
+    color: var(--fv-text);
+    border: 1px solid var(--fv-border);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.fv-btn:hover {
+    background: var(--fv-accent);
+    color: white;
+    border-color: var(--fv-accent);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+}
+
+.fv-btn:active {
+    transform: translateY(0);
+}
+
+.fv-icon {
+    font-size: 14px;
+    display: inline-block;
+}
+
+.fv-btn-text {
+    font-weight: 500;
+}
+
+/* Content area */
+.fv-content-wrapper {
+    position: relative;
+    overflow: auto;
+}
+
+.fv-content {
+    margin: 0;
+    padding: 20px;
+    overflow-x: auto;
+    font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    tab-size: 2;
+}
+
+.fv-content code {
+    font-family: inherit;
+    white-space: pre;
+}
+
+/* Line numbers */
+.fv-content.fv-line-numbers {
+    display: flex;
+    padding-left: 0;
+}
+
+.fv-line-numbers-wrapper {
+    display: flex;
+    flex-direction: column;
+    padding: 20px 12px;
+    background: var(--fv-bg-secondary);
+    border-right: 1px solid var(--fv-border);
+    user-select: none;
+    text-align: right;
+    color: var(--fv-text-dim);
+    min-width: 50px;
+}
+
+.fv-line-number {
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+/* Syntax highlighting classes */
+.fv-string { color: var(--fv-syntax-string); }
+.fv-number { color: var(--fv-syntax-number); }
+.fv-boolean { color: var(--fv-syntax-boolean); }
+.fv-null { color: var(--fv-syntax-null); }
+.fv-key { color: var(--fv-syntax-key); font-weight: 500; }
+.fv-keyword { color: var(--fv-syntax-keyword); }
+.fv-comment { color: var(--fv-syntax-comment); font-style: italic; }
+.fv-operator { color: var(--fv-syntax-operator); }
+.fv-punctuation { color: var(--fv-syntax-punctuation); }
+.fv-variable { color: var(--fv-syntax-variable); }
+.fv-function { color: var(--fv-syntax-function); }
+.fv-class { color: var(--fv-syntax-class); }
+.fv-tag { color: var(--fv-syntax-tag); }
+.fv-attribute { color: var(--fv-syntax-attribute); }
+.fv-error { color: var(--fv-syntax-error); }
+
+/* Error bar */
+.fv-error-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    background: rgba(244, 135, 113, 0.1);
+    border-left: 4px solid var(--fv-error);
+    color: var(--fv-error);
+}
+
+.fv-error-icon {
+    font-size: 16px;
+}
+
+.fv-error-message {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+}
+
+/* Status bar */
+.fv-status-bar {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    gap: 20px;
+    padding: 8px 20px;
+    background: var(--fv-bg-tertiary);
+    border-top: 1px solid var(--fv-border);
+    font-size: 11px;
+    color: var(--fv-text-dim);
+}
+
+.fv-status-item {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Toast notifications */
+.fv-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    background: var(--fv-accent);
+    color: white;
+    border-radius: 4px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.fv-toast.fv-toast-show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Selection */
+.fv-content ::selection {
+    background: var(--fv-accent);
+    color: white;
+}
+
+/* Scrollbar styling */
+.fv-content::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+.fv-content::-webkit-scrollbar-track {
+    background: var(--fv-bg-secondary);
+}
+
+.fv-content::-webkit-scrollbar-thumb {
+    background: var(--fv-border);
+    border-radius: 6px;
+}
+
+.fv-content::-webkit-scrollbar-thumb:hover {
+    background: var(--fv-text-dim);
+}
+
+/* CSV Table styles */
+.fv-csv-wrapper {
+    overflow-x: auto;
+    padding: 20px;
+}
+
+.fv-csv-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    background: var(--fv-bg-primary);
+}
+
+.fv-csv-table thead {
+    position: sticky;
+    top: 0;
+    background: var(--fv-bg-tertiary);
+    z-index: 10;
+}
+
+.fv-csv-table th {
+    padding: 8px 12px;
+    text-align: left;
+    font-weight: 600;
+    color: var(--fv-accent);
+    border: 1px solid var(--fv-border);
+    background: var(--fv-bg-tertiary);
+}
+
+.fv-csv-table td {
+    padding: 6px 12px;
+    border: 1px solid var(--fv-border);
+    color: var(--fv-text);
+}
+
+.fv-csv-table tbody tr:hover {
+    background: var(--fv-bg-secondary);
+}
+
+.fv-csv-table .fv-csv-row-num {
+    width: 50px;
+    text-align: center;
+    background: var(--fv-bg-secondary);
+    color: var(--fv-text-dim);
+    font-weight: 500;
+}
+
+.fv-csv-table .fv-csv-numeric {
+    text-align: right;
+    color: var(--fv-syntax-number);
+    font-family: 'Monaco', 'Menlo', monospace;
+}
+
+.fv-csv-summary {
+    padding: 10px 20px;
+    background: var(--fv-bg-tertiary);
+    border-top: 1px solid var(--fv-border);
+    color: var(--fv-text-dim);
+    font-size: 11px;
+}
+
+/* Print styles */
+@media print {
+    .fv-header,
+    .fv-status-bar {
+        display: none;
+    }
+
+    .fv-container {
+        background: white;
+        color: black;
+    }
+
+    .fv-content {
+        padding: 0;
+    }
+}
