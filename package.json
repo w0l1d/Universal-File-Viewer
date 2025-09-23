@@ -1,6 +1,6 @@
 {
   "name": "universal-file-viewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Extensible Firefox addon for beautifying and highlighting various file formats",
   "author": "Walid Ahdouf",
   "license": "MIT",
@@ -42,7 +42,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/universal-file-viewer"
+    "url": "https://github.com/w0l1d/universal-file-viewer"
   },
   "keywords": [
     "firefox",

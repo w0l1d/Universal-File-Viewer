@@ -1,14 +1,26 @@
 {
   "manifest_version": 2,
   "name": "Universal File Viewer",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Beautify and highlight various file formats in browser",
   "author": "Walid Ahdouf",
   "homepage_url": "https://github.com/w0l1d/universal-file-viewer",
-
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "@extension-without-data-collection",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
+    }
+  },
   "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
-    "96": "icons/icon-96.png"
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png",
+    "256": "icons/icon-256.png",
+    "512": "icons/icon-512.png"
   },
 
   "permissions": [
@@ -54,7 +66,6 @@
       "32": "icons/icon-32.png"
     }
   },
-
   "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
 
   "web_accessible_resources": [
@@ -62,6 +73,7 @@
     "css/*",
     "js/*",
     "icons/*",
+    "styles/*",
     "viewer.html"
   ]
 }

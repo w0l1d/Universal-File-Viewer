@@ -9,8 +9,11 @@ const DEFAULT_SETTINGS = {
     showLineNumbers: true,
     sortKeys: false,
     indentSize: 2,
-    enabledFormats: ['json', 'yaml'],
-    autoFormat: true
+    autoFormat: true,
+    maxFileSize: 10,
+    enableCache: true,
+    customFormats: {},
+    extensionMappings: {}
 };
 
 // Initialize settings on install
@@ -40,6 +43,16 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
         case 'trackUsage':
             trackUsage(request.format);
             break;
+
+        case 'getCustomFormats':
+            browser.storage.local.get('settings').then(result => {
+                const settings = result.settings || DEFAULT_SETTINGS;
+                sendResponse({
+                    customFormats: settings.customFormats || {},
+                    extensionMappings: settings.extensionMappings || {}
+                });
+            });
+            return true;
     }
 });
 

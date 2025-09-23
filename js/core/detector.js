@@ -4,6 +4,8 @@
  */
 const FileDetector = (() => {
     const detectors = new Map();
+    let customFormats = {};
+    let extensionMappings = {};
 
     /**
      * Register a format detector
@@ -27,12 +29,32 @@ const FileDetector = (() => {
      * Detect file format from current page
      * @returns {string|null} Detected format or null
      */
-    function detect() {
+    async function detect() {
         const contentType = document.contentType.toLowerCase();
         const url = window.location.href;
         const content = document.body?.textContent || '';
+        const extension = getFileExtension(url);
 
-        // Sort detectors by priority
+        // Load custom formats and mappings from settings
+        await loadCustomFormats();
+
+        // Check extension mappings first (highest priority)
+        if (extension && extensionMappings[`.${extension}`]) {
+            const mappedFormat = extensionMappings[`.${extension}`];
+            // If it maps to a custom format, check if that format still exists
+            if (customFormats[mappedFormat] || detectors.has(mappedFormat)) {
+                return mappedFormat;
+            }
+        }
+
+        // Check custom formats
+        for (const [formatName, config] of Object.entries(customFormats)) {
+            if (extension && config.extensions.includes(`.${extension}`)) {
+                return config.mapper; // Return the mapped format for processing
+            }
+        }
+
+        // Sort built-in detectors by priority
         const sorted = Array.from(detectors.entries())
             .sort((a, b) => b[1].priority - a[1].priority);
 
@@ -42,8 +64,7 @@ const FileDetector = (() => {
                 return format;
             }
 
-            // Check file extension (improved to handle complex URLs)
-            const extension = getFileExtension(url);
+            // Check file extension
             if (extension && detector.extensions.includes(extension)) {
                 return format;
             }
@@ -97,9 +118,42 @@ const FileDetector = (() => {
         }
     }
 
+    /**
+     * Load custom formats and extension mappings from settings
+     * @private
+     */
+    async function loadCustomFormats() {
+        try {
+            if (typeof browser !== 'undefined' && browser.runtime) {
+                const response = await browser.runtime.sendMessage({
+                    action: 'getCustomFormats'
+                });
+                if (response) {
+                    customFormats = response.customFormats || {};
+                    extensionMappings = response.extensionMappings || {};
+                }
+            }
+        } catch (error) {
+            console.log('FileDetector: Could not load custom formats:', error);
+            customFormats = {};
+            extensionMappings = {};
+        }
+    }
+
+    /**
+     * Get all supported formats including custom ones
+     * @returns {Array<string>} Array of format names
+     */
+    function getSupportedFormats() {
+        const builtInFormats = Array.from(detectors.keys());
+        const customFormatNames = Object.keys(customFormats);
+        return [...builtInFormats, ...customFormatNames];
+    }
+
     return {
         register,
         detect,
-        getDetector
+        getDetector,
+        getSupportedFormats
     };
 })();
