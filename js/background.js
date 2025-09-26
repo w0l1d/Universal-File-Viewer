@@ -1,224 +1,253 @@
 /**
- * Background script for File Viewer extension
- * Handles extension-wide functionality and settings
+ * 🦊 Native Multi-Format Viewer - Background Script
+ * Download interception and inline content display
  */
 
-// Default settings
+console.log('🦊 Native Multi-Format Viewer - Background script loaded');
+
+// Simple settings management
 const DEFAULT_SETTINGS = {
-    theme: 'auto', // auto, dark, light
-    showLineNumbers: true,
-    sortKeys: false,
-    indentSize: 2,
-    autoFormat: true,
-    maxFileSize: 10,
-    enableCache: true,
-    customFormats: {},
-    extensionMappings: {}
+    enabled: true,
+    autoDetect: true,
+    supportedFormats: ['json', 'yaml', 'xml', 'csv', 'toml'],
+    theme: 'auto' // auto, light, dark
 };
 
-// Initialize settings on install
-browser.runtime.onInstalled.addListener(() => {
-    browser.storage.local.get('settings').then(result => {
-        if (!result.settings) {
-            browser.storage.local.set({ settings: DEFAULT_SETTINGS });
-        }
-    });
-});
+// Supported file types for download interception
+const SUPPORTED_TYPES = {
+    extensions: new Set(['json', 'yaml', 'yml', 'xml', 'csv', 'toml']),
+    mimeTypes: new Set([
+        'application/json',
+        'application/x-yaml',
+        'application/yaml',
+        'text/yaml',
+        'text/xml',
+        'application/xml',
+        'text/csv',
+        'application/csv',
+        'application/toml'
+    ])
+};
 
-// Handle messages from content scripts
-browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    switch (request.action) {
-        case 'getSettings':
-            browser.storage.local.get('settings').then(result => {
-                sendResponse(result.settings || DEFAULT_SETTINGS);
-            });
-            return true; // Keep message channel open for async response
-
-        case 'saveSettings':
-            browser.storage.local.set({ settings: request.settings }).then(() => {
-                sendResponse({ success: true });
-            });
-            return true;
-
-        case 'trackUsage':
-            trackUsage(request.format);
-            break;
-
-        case 'getCustomFormats':
-            browser.storage.local.get('settings').then(result => {
-                const settings = result.settings || DEFAULT_SETTINGS;
-                sendResponse({
-                    customFormats: settings.customFormats || {},
-                    extensionMappings: settings.extensionMappings || {}
-                });
-            });
-            return true;
-    }
-});
-
-// Track usage statistics
-function trackUsage(format) {
-    browser.storage.local.get('stats').then(result => {
-        const stats = result.stats || {};
-        stats[format] = (stats[format] || 0) + 1;
-        stats.lastUsed = new Date().toISOString();
-        browser.storage.local.set({ stats });
-    });
-}
-
-// Supported file extensions that should be displayed inline
-const SUPPORTED_EXTENSIONS = ['json', 'yaml', 'yml', 'xml', 'csv', 'toml', 'txt'];
-
-// Supported MIME types that should be displayed inline
-const SUPPORTED_MIME_TYPES = [
-    'application/json',
-    'application/x-yaml',
-    'application/yaml',
-    'text/yaml',
-    'text/x-yaml',
-    'text/xml',
-    'application/xml',
-    'text/csv',
-    'application/csv',
-    'text/plain',
-    'application/toml',
-    'text/toml'
+// Download interception patterns
+const DOWNLOAD_PATTERNS = [
+    /\.(json|yaml|yml|xml|csv|toml)(\?.*)?$/i,
+    /\/[^\/]+\.(json|yaml|yml|xml|csv|toml)(\?.*)?$/i
 ];
 
-// Check if URL has a supported file extension
-function hasSupportedExtension(url) {
+// Check if URL should be intercepted
+function shouldInterceptUrl(url, responseHeaders = {}) {
     try {
         const urlObj = new URL(url);
+
+        // Check file extension
         const pathname = urlObj.pathname.toLowerCase();
-        const segments = pathname.split('/');
-        const filename = segments[segments.length - 1];
-        const dotIndex = filename.lastIndexOf('.');
-
-        if (dotIndex > 0 && dotIndex < filename.length - 1) {
-            const extension = filename.substring(dotIndex + 1);
-            return SUPPORTED_EXTENSIONS.includes(extension);
+        const extension = pathname.split('.').pop();
+        if (SUPPORTED_TYPES.extensions.has(extension)) {
+            return { format: extension, reason: 'extension' };
         }
-    } catch (e) {
-        // Ignore URL parsing errors
+
+        // Check Content-Type header
+        const contentType = responseHeaders['content-type'] || '';
+        for (const mimeType of SUPPORTED_TYPES.mimeTypes) {
+            if (contentType.includes(mimeType)) {
+                const format = mimeType.includes('json') ? 'json' :
+                             mimeType.includes('yaml') ? 'yaml' :
+                             mimeType.includes('xml') ? 'xml' :
+                             mimeType.includes('csv') ? 'csv' :
+                             mimeType.includes('toml') ? 'toml' : null;
+                if (format) {
+                    return { format, reason: 'mime-type' };
+                }
+            }
+        }
+
+        // Check download patterns
+        for (const pattern of DOWNLOAD_PATTERNS) {
+            if (pattern.test(url)) {
+                const match = url.match(/\.(json|yaml|yml|xml|csv|toml)/i);
+                if (match) {
+                    return { format: match[1].toLowerCase(), reason: 'pattern' };
+                }
+            }
+        }
+
+        return null;
+    } catch (error) {
+        console.error('🦊 URL interception check failed:', error);
+        return null;
     }
-    return false;
 }
 
-// Check if MIME type is supported
-function hasSupportedMimeType(contentType) {
-    if (!contentType) return false;
-    const mimeType = contentType.toLowerCase().split(';')[0].trim();
-    return SUPPORTED_MIME_TYPES.includes(mimeType);
-}
-
-// Early interception to redirect supported files to a viewer page
+// Download interception for direct file access
 browser.webRequest.onBeforeRequest.addListener(
-    function(details) {
-        const hasExtension = hasSupportedExtension(details.url);
+    async (details) => {
+        try {
+            const settings = await browser.storage.local.get('settings');
+            if (!settings.settings?.enabled) return;
 
-        if (hasExtension && details.type === "main_frame") {
-            console.log('File Viewer: Redirecting supported file to viewer:', details.url);
+            const detection = shouldInterceptUrl(details.url);
+            if (detection && details.type === 'main_frame') {
+                console.log('🦊 Intercepting download:', details.url, detection);
 
-            // Create a data URL that will display the content
-            const encodedUrl = encodeURIComponent(details.url);
-            const viewerUrl = browser.runtime.getURL(`viewer.html?url=${encodedUrl}`);
+                // Create viewer URL with original file URL
+                const viewerUrl = browser.runtime.getURL('viewer.html') +
+                                '#' + encodeURIComponent(JSON.stringify({
+                                    originalUrl: details.url,
+                                    format: detection.format,
+                                    reason: detection.reason,
+                                    timestamp: Date.now()
+                                }));
 
-            return { redirectUrl: viewerUrl };
+                return { redirectUrl: viewerUrl };
+            }
+        } catch (error) {
+            console.error('🦊 Request interception failed:', error);
         }
     },
-    {
-        urls: ["<all_urls>"],
-        types: ["main_frame"]
-    },
-    ["blocking"]
+    { urls: ['<all_urls>'], types: ['main_frame'] },
+    ['blocking']
 );
 
-// Intercept headers to prevent downloads and force inline display
+// Enhanced response header checking
 browser.webRequest.onHeadersReceived.addListener(
-    function(details) {
-        let headers = details.responseHeaders;
-        let modified = false;
+    async (details) => {
+        try {
+            const settings = await browser.storage.local.get('settings');
+            if (!settings.settings?.enabled) return;
 
-        // Check if this is a file we want to handle
-        const hasExtension = hasSupportedExtension(details.url);
-        let hasMimeType = false;
-
-        // Find content-type header
-        let contentTypeHeader = null;
-        for (let header of headers) {
-            if (header.name.toLowerCase() === 'content-type') {
-                contentTypeHeader = header;
-                hasMimeType = hasSupportedMimeType(header.value);
-                break;
-            }
-        }
-
-        // Only modify headers for files we can handle
-        if (hasExtension || hasMimeType) {
-            console.log('File Viewer: Intercepting headers for', details.url);
-            console.log('File Viewer: Original headers:', headers.map(h => `${h.name}: ${h.value}`));
-
-            // Remove any existing content-disposition headers and force inline
-            headers = headers.filter(header => header.name.toLowerCase() !== 'content-disposition');
-            headers.push({
-                name: 'Content-Disposition',
-                value: 'inline; filename="' + details.url.split('/').pop().split('?')[0] + '"'
+            // Convert headers array to object
+            const headers = {};
+            details.responseHeaders.forEach(header => {
+                headers[header.name.toLowerCase()] = header.value;
             });
-            modified = true;
-            console.log('File Viewer: Forced content-disposition to inline');
 
-            // Remove any cache-control headers that might interfere
-            headers = headers.filter(header => header.name.toLowerCase() !== 'cache-control');
-            headers.push({
-                name: 'Cache-Control',
-                value: 'no-cache, no-store'
-            });
-            modified = true;
+            const detection = shouldInterceptUrl(details.url, headers);
+            if (detection && details.type === 'main_frame') {
+                // Check if Content-Disposition suggests download
+                const contentDisposition = headers['content-disposition'] || '';
+                if (contentDisposition.includes('attachment')) {
+                    console.log('🦊 Intercepting attachment download:', details.url, detection);
 
-            // Ensure proper content-type for supported files
-            if (hasExtension && !hasMimeType) {
-                const url = details.url.toLowerCase();
-                let mimeType = null;
+                    const viewerUrl = browser.runtime.getURL('viewer.html') +
+                                    '#' + encodeURIComponent(JSON.stringify({
+                                        originalUrl: details.url,
+                                        format: detection.format,
+                                        reason: 'attachment-' + detection.reason,
+                                        timestamp: Date.now(),
+                                        headers: headers
+                                    }));
 
-                if (url.includes('.yaml') || url.includes('.yml')) {
-                    mimeType = 'application/x-yaml';
-                } else if (url.includes('.json')) {
-                    mimeType = 'application/json';
-                } else if (url.includes('.xml')) {
-                    mimeType = 'text/xml';
-                } else if (url.includes('.csv')) {
-                    mimeType = 'text/csv';
-                } else if (url.includes('.toml')) {
-                    mimeType = 'application/toml';
-                }
-
-                if (mimeType) {
-                    if (contentTypeHeader) {
-                        contentTypeHeader.value = mimeType;
-                    } else {
-                        headers.push({
-                            name: 'Content-Type',
-                            value: mimeType
-                        });
-                    }
-                    modified = true;
-                    console.log('File Viewer: Set content-type to', mimeType);
+                    return { redirectUrl: viewerUrl };
                 }
             }
+        } catch (error) {
+            console.error('🦊 Header interception failed:', error);
         }
-
-        if (modified) {
-            console.log('File Viewer: Modified headers:', headers.map(h => `${h.name}: ${h.value}`));
-        }
-
-        return modified ? { responseHeaders: headers } : {};
     },
-    {
-        urls: ["<all_urls>"],
-        types: ["main_frame"]
-    },
-    ["blocking", "responseHeaders"]
+    { urls: ['<all_urls>'], types: ['main_frame'] },
+    ['blocking', 'responseHeaders']
 );
 
-// Add debugging for when the extension starts
-console.log('File Viewer: Background script loaded, webRequest listeners registered');
+// Initialize settings on install
+browser.runtime.onInstalled.addListener(async () => {
+    try {
+        const result = await browser.storage.local.get('settings');
+        if (!result.settings) {
+            await browser.storage.local.set({ settings: DEFAULT_SETTINGS });
+            console.log('🦊 Default settings initialized');
+        }
+    } catch (error) {
+        console.error('🦊 Settings initialization failed:', error);
+    }
+});
+
+// Handle messages from content script and viewer
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    console.log('🦊 Background: Received message:', request.action);
+
+    // Handle async operations properly
+    const handleMessage = async () => {
+        try {
+            switch (request.action) {
+                case 'getSettings':
+                    const result = await browser.storage.local.get('settings');
+                    return result.settings || DEFAULT_SETTINGS;
+
+                case 'saveSettings':
+                    await browser.storage.local.set({ settings: request.settings });
+                    return { success: true };
+
+                case 'trackUsage':
+                    const stats = await browser.storage.local.get('stats') || {};
+                    const currentStats = stats.stats || {};
+                    currentStats[request.format] = (currentStats[request.format] || 0) + 1;
+                    currentStats.lastUsed = Date.now();
+                    await browser.storage.local.set({ stats: currentStats });
+                    return { success: true };
+
+                case 'fetchFile':
+                    console.log('🦊 Background: Fetching file:', request.url);
+                    try {
+                        const response = await fetch(request.url, {
+                            headers: { 'Accept': '*/*' },
+                            mode: 'cors'
+                        });
+
+                        console.log('🦊 Background: Fetch response status:', response.status);
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+
+                        const content = await response.text();
+                        const result = {
+                            success: true,
+                            content,
+                            contentType: response.headers.get('content-type'),
+                            size: content.length
+                        };
+
+                        console.log('🦊 Background: Fetch successful, size:', result.size);
+                        return result;
+                    } catch (error) {
+                        console.error('🦊 Background: Fetch failed:', error);
+                        return {
+                            success: false,
+                            error: error.message
+                        };
+                    }
+
+                default:
+                    console.log('🦊 Unknown action:', request.action);
+                    return { success: false, error: 'Unknown action' };
+            }
+        } catch (error) {
+            console.error('🦊 Message handling failed:', error);
+            return { success: false, error: error.message };
+        }
+    };
+
+    // Execute async handler and send response
+    handleMessage().then(response => {
+        console.log('🦊 Background: Sending response:', response);
+        sendResponse(response);
+    }).catch(error => {
+        console.error('🦊 Background: Handler error:', error);
+        sendResponse({ success: false, error: error.message });
+    });
+
+    return true; // Keep message channel open for async response
+});
+
+// Export for debugging
+if (typeof globalThis !== 'undefined') {
+    globalThis.NativeViewerBackground = {
+        DEFAULT_SETTINGS,
+        SUPPORTED_TYPES,
+        shouldInterceptUrl
+    };
+}
+
+console.log('🦊 Native background script ready with download interception');
+console.log('🦊 Supported formats:', Array.from(SUPPORTED_TYPES.extensions));
