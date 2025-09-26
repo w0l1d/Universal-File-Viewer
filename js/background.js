@@ -90,7 +90,57 @@ browser.webRequest.onBeforeRequest.addListener(
             if (detection && details.type === 'main_frame') {
                 console.log('🦊 Intercepting download:', details.url, detection);
 
-                // Create viewer URL with original file URL
+                // Try to fetch the content immediately during interception
+                try {
+                    console.log('🦊 Pre-fetching content during interception...');
+                    const response = await fetch(details.url, {
+                        headers: { 'Accept': '*/*' },
+                        mode: 'cors'
+                    });
+
+                    if (response.ok) {
+                        const content = await response.text();
+                        const contentType = response.headers.get('content-type');
+
+                        // Extract all response headers
+                        const responseHeaders = {};
+                        response.headers.forEach((value, name) => {
+                            responseHeaders[name.toLowerCase()] = value;
+                        });
+
+                        console.log('🦊 Pre-fetch successful, size:', content.length);
+                        console.log('🦊 Response headers:', responseHeaders);
+
+                        // Store the fetched content temporarily
+                        const cacheKey = `content_${Date.now()}`;
+                        await browser.storage.local.set({
+                            [cacheKey]: {
+                                content,
+                                contentType,
+                                size: content.length,
+                                timestamp: Date.now(),
+                                headers: responseHeaders
+                            }
+                        });
+
+                        // Create viewer URL with cached content reference
+                        const viewerUrl = browser.runtime.getURL('viewer.html') +
+                                        '#' + encodeURIComponent(JSON.stringify({
+                                            originalUrl: details.url,
+                                            format: detection.format,
+                                            reason: detection.reason,
+                                            timestamp: Date.now(),
+                                            cacheKey: cacheKey
+                                        }));
+
+                        console.log('🦊 Generated viewer URL with cached content:', viewerUrl);
+                        return { redirectUrl: viewerUrl };
+                    }
+                } catch (fetchError) {
+                    console.error('🦊 Pre-fetch failed, falling back to direct fetch:', fetchError);
+                }
+
+                // Fallback to original approach if pre-fetch fails
                 const viewerUrl = browser.runtime.getURL('viewer.html') +
                                 '#' + encodeURIComponent(JSON.stringify({
                                     originalUrl: details.url,
@@ -99,6 +149,7 @@ browser.webRequest.onBeforeRequest.addListener(
                                     timestamp: Date.now()
                                 }));
 
+                console.log('🦊 Generated viewer URL:', viewerUrl);
                 return { redirectUrl: viewerUrl };
             }
         } catch (error) {
@@ -185,6 +236,39 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
                     currentStats.lastUsed = Date.now();
                     await browser.storage.local.set({ stats: currentStats });
                     return { success: true };
+
+                case 'getCachedContent':
+                    console.log('🦊 Background: Getting cached content:', request.cacheKey);
+                    try {
+                        const result = await browser.storage.local.get(request.cacheKey);
+                        const cachedData = result[request.cacheKey];
+
+                        if (cachedData) {
+                            console.log('🦊 Background: Cached content found, size:', cachedData.size);
+
+                            // Clean up old cached content (older than 5 minutes)
+                            const fiveMinutesAgo = Date.now() - (5 * 60 * 1000);
+                            if (cachedData.timestamp < fiveMinutesAgo) {
+                                browser.storage.local.remove(request.cacheKey);
+                            }
+
+                            return {
+                                success: true,
+                                content: cachedData.content,
+                                contentType: cachedData.contentType,
+                                size: cachedData.size,
+                                headers: cachedData.headers || {}
+                            };
+                        } else {
+                            throw new Error('Cached content not found or expired');
+                        }
+                    } catch (error) {
+                        console.error('🦊 Background: Cache retrieval failed:', error);
+                        return {
+                            success: false,
+                            error: error.message
+                        };
+                    }
 
                 case 'fetchFile':
                     console.log('🦊 Background: Fetching file:', request.url);
