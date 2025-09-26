@@ -8,7 +8,12 @@
 
   "browser_specific_settings": {
     "gecko": {
-      "id": "{9fcf0451-bb25-4b50-b7ae-e788f10cc82b}"
+      "id": "{9fcf0451-bb25-4b50-b7ae-e788f10cc82b}",
+      "data_collection_permissions": {
+        "required": [],
+        "description": "This extension collects minimal usage statistics (file format types viewed) to improve functionality. No file content or personal data is collected.",
+        "policy_url": "https://github.com/w0l1d/universal-file-viewer/blob/main/PRIVACY.md"
+      }
     }
   },
 
