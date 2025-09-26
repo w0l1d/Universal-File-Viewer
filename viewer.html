@@ -1,35 +1,280 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Universal File Viewer</title>
-    <link rel="stylesheet" href="css/viewer.css">
-    <link rel="stylesheet" href="lib/highlight.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Viewer</title>
     <style>
-        body {
+        /* Reset and base styles */
+        * {
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f5f5f5;
-            min-height: 100vh;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        .loading {
+        /* Firefox-matching CSS variables */
+        :root {
+            --fv-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            --fv-font-size: 14px;
+            --fv-line-height: 1.4;
+
+            /* Light theme colors (matching Firefox JSON viewer) */
+            --fv-color-text: #0c0c0d;
+            --fv-color-background: #ffffff;
+            --fv-color-header-bg: #f9f9fa;
+            --fv-color-border: #d7d7db;
+            --fv-color-accent: #0060df;
+            --fv-color-accent-hover: #003eaa;
+            --fv-color-muted: #737373;
+            --fv-color-success: #30e60b;
+            --fv-color-error: #d70022;
+
+            /* Tree view colors */
+            --fv-tree-indent: 20px;
+            --fv-tree-icon-size: 12px;
+            --fv-color-string: #d73502;
+            --fv-color-number: #0066cc;
+            --fv-color-boolean: #8b008b;
+            --fv-color-null: #999999;
+            --fv-color-key: #0c0c0d;
+        }
+
+        /* Dark theme */
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --fv-color-text: #f9f9fa;
+                --fv-color-background: #2a2a2e;
+                --fv-color-header-bg: #38383d;
+                --fv-color-border: #4a4a4f;
+                --fv-color-accent: #00ddff;
+                --fv-color-accent-hover: #80ebff;
+                --fv-color-muted: #b1b1b3;
+                --fv-color-success: #30e60b;
+                --fv-color-error: #ff9400;
+
+                --fv-color-string: #ff7de9;
+                --fv-color-number: #6aa7f8;
+                --fv-color-boolean: #ff7de9;
+                --fv-color-null: #b1b1b3;
+                --fv-color-key: #f9f9fa;
+            }
+        }
+
+        /* Main layout */
+        body {
+            font-family: var(--fv-font-family);
+            font-size: var(--fv-font-size);
+            line-height: var(--fv-line-height);
+            color: var(--fv-color-text);
+            background-color: var(--fv-color-background);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Header */
+        .fv-header {
+            background-color: var(--fv-color-header-bg);
+            border-bottom: 1px solid var(--fv-color-border);
+            padding: 12px 16px;
             display: flex;
-            justify-content: center;
             align-items: center;
-            height: 100vh;
-            flex-direction: column;
-            color: #666;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
-        .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #3498db;
+        .fv-file-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .fv-format-badge {
+            background-color: var(--fv-color-accent);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .fv-filename {
+            font-weight: 500;
+            color: var(--fv-color-text);
+        }
+
+        .fv-filesize {
+            color: var(--fv-color-muted);
+            font-size: 13px;
+        }
+
+        /* Controls */
+        .fv-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .fv-search-box {
+            padding: 6px 10px;
+            border: 1px solid var(--fv-color-border);
+            border-radius: 4px;
+            font-size: 13px;
+            background-color: var(--fv-color-background);
+            color: var(--fv-color-text);
+            min-width: 200px;
+        }
+
+        .fv-search-box:focus {
+            outline: none;
+            border-color: var(--fv-color-accent);
+            box-shadow: 0 0 0 1px var(--fv-color-accent);
+        }
+
+        .fv-toggle-group {
+            display: flex;
+            border: 1px solid var(--fv-color-border);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .fv-toggle-btn {
+            padding: 6px 12px;
+            background-color: var(--fv-color-background);
+            color: var(--fv-color-text);
+            border: none;
+            font-size: 13px;
+            cursor: pointer;
+            border-right: 1px solid var(--fv-color-border);
+        }
+
+        .fv-toggle-btn:last-child {
+            border-right: none;
+        }
+
+        .fv-toggle-btn.active {
+            background-color: var(--fv-color-accent);
+            color: white;
+        }
+
+        .fv-toggle-btn:hover:not(.active) {
+            background-color: var(--fv-color-header-bg);
+        }
+
+        /* Copy URL button */
+        .fv-copy-url-btn {
+            padding: 6px 12px;
+            background-color: transparent;
+            color: var(--fv-color-text);
+            border: 1px solid var(--fv-color-border);
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 12px;
+            transition: all 0.2s;
+        }
+
+        .fv-copy-url-btn:hover {
+            background-color: var(--fv-color-header-bg);
+            border-color: var(--fv-color-accent);
+        }
+
+        .fv-copy-url-btn:active {
+            transform: translateY(1px);
+        }
+
+        .fv-copy-url-btn.copied {
+            background-color: var(--fv-color-success);
+            color: white;
+            border-color: var(--fv-color-success);
+        }
+
+        .fv-copy-icon {
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        /* Headers button */
+        .fv-headers-btn {
+            padding: 6px 12px;
+            background-color: transparent;
+            color: var(--fv-color-text);
+            border: 1px solid var(--fv-color-border);
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            transition: all 0.2s;
+        }
+
+        .fv-headers-btn:hover {
+            background-color: var(--fv-color-header-bg);
+            border-color: var(--fv-color-accent);
+        }
+
+        .fv-headers-btn:active {
+            transform: translateY(1px);
+        }
+
+        .fv-headers-icon {
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        /* Download button */
+        .fv-download-btn {
+            padding: 6px 12px;
+            background-color: var(--fv-color-accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-left: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .fv-download-btn:hover {
+            background-color: var(--fv-color-accent-hover);
+        }
+
+        .fv-download-btn:active {
+            transform: translateY(1px);
+        }
+
+        .fv-download-icon {
+            font-size: 14px;
+            line-height: 1;
+        }
+
+        /* Loading state */
+        .fv-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            color: var(--fv-color-muted);
+            gap: 12px;
+        }
+
+        .fv-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--fv-color-border);
+            border-top: 2px solid var(--fv-color-accent);
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
             animation: spin 1s linear infinite;
-            margin-bottom: 20px;
         }
 
         @keyframes spin {
@@ -37,162 +282,408 @@
             100% { transform: rotate(360deg); }
         }
 
-        .error {
-            background: #fff;
-            margin: 20px auto;
+        /* Content container */
+        .fv-content {
+            padding: 16px;
+            max-width: 100%;
+            overflow-x: auto;
+        }
+
+        /* Error state */
+        .fv-error {
+            color: var(--fv-color-error);
+            background-color: var(--fv-color-background);
             padding: 20px;
-            max-width: 800px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            border-left: 4px solid #e74c3c;
-        }
-
-        .viewer-container {
-            background: #fff;
-            margin: 20px auto;
-            max-width: 1200px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-            overflow: hidden;
-        }
-
-        .viewer-header {
-            background: #34495e;
-            color: white;
-            padding: 15px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .viewer-controls {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
-        }
-
-        .btn {
-            padding: 8px 12px;
-            border: none;
+            border: 1px solid var(--fv-color-error);
             border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            text-decoration: none;
-            display: inline-block;
-            transition: background-color 0.2s;
+            margin: 16px;
         }
 
-        .btn-primary {
-            background: #3498db;
-            color: white;
+        .fv-error-title {
+            font-weight: 500;
+            margin-bottom: 8px;
         }
 
-        .btn-primary:hover {
-            background: #2980b9;
-        }
-
-        .btn-secondary {
-            background: #95a5a6;
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background: #7f8c8d;
-        }
-
-        .content-container {
-            padding: 0;
-            position: relative;
-        }
-
-        #file-content {
-            margin: 0;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            white-space: pre-wrap;
+        /* Raw view */
+        .fv-raw-content {
+            white-space: pre;
+            font-family: Monaco, Menlo, "Ubuntu Mono", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+            padding: 16px;
+            background-color: var(--fv-color-header-bg);
+            border: 1px solid var(--fv-color-border);
+            border-radius: 4px;
+            overflow-x: auto;
             word-wrap: break-word;
-            padding: 20px;
-            background: transparent;
+            word-break: break-all;
         }
 
-        /* Override highlight.js styles for better integration */
-        #file-content .hljs {
-            background: transparent;
-            padding: 0;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
-        }
-
-        /* Style JSON viewer component */
-        #tree-viewer {
-            padding: 20px;
-            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
-            font-size: 14px;
+        /* Tree view styles */
+        .fv-tree {
+            font-family: Monaco, Menlo, "Ubuntu Mono", monospace;
+            font-size: 13px;
             line-height: 1.6;
         }
 
-        /* Customize JSON viewer colors */
-        json-viewer {
-            --background-color: transparent;
-            --color: #333;
-            --string-color: #22863a;
-            --number-color: #005cc5;
-            --boolean-color: #d73a49;
-            --null-color: #6f42c1;
-            --property-color: #032f62;
-            --bracket-color: #586069;
-            --collapsed-color: #586069;
-            --highlight-color: #fffbdd;
+        .fv-tree-node {
+            margin: 0;
+        }
+
+        .fv-tree-line {
+            display: flex;
+            align-items: flex-start;
+            min-height: 20px;
+            padding: 1px 0;
+        }
+
+        .fv-tree-indent {
+            width: var(--fv-tree-indent);
+            flex-shrink: 0;
+        }
+
+        .fv-tree-icon {
+            width: var(--fv-tree-icon-size);
+            height: var(--fv-tree-icon-size);
+            flex-shrink: 0;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--fv-color-muted);
+            font-size: 10px;
+            line-height: 1;
+            margin-right: 4px;
+            margin-top: 2px;
+        }
+
+        .fv-tree-icon:hover {
+            color: var(--fv-color-text);
+        }
+
+        .fv-tree-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .fv-tree-key {
+            color: var(--fv-color-key);
+            font-weight: 500;
+        }
+
+        .fv-tree-colon {
+            color: var(--fv-color-muted);
+            margin: 0 4px 0 0;
+        }
+
+        .fv-tree-value {
+            word-wrap: break-word;
+        }
+
+        .fv-tree-value.string {
+            color: var(--fv-color-string);
+        }
+
+        .fv-tree-value.number {
+            color: var(--fv-color-number);
+        }
+
+        .fv-tree-value.boolean {
+            color: var(--fv-color-boolean);
+        }
+
+        .fv-tree-value.null {
+            color: var(--fv-color-null);
+        }
+
+        .fv-tree-collapsed .fv-tree-children {
+            display: none;
+        }
+
+        .fv-tree-summary {
+            color: var(--fv-color-muted);
+            font-style: italic;
+            margin-left: 4px;
+        }
+
+        .fv-tree-bracket {
+            color: var(--fv-color-muted);
+            margin: 0 2px;
+        }
+
+        /* Highlight search matches */
+        .fv-highlight {
+            background-color: #ffff00;
+            color: #000000;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        /* Print styles */
+        @media print {
+            .fv-header {
+                position: static;
+            }
+
+            .fv-tree-collapsed .fv-tree-children {
+                display: block;
+            }
+
+            .fv-tree-icon::before {
+                content: "▼";
+            }
+        }
+
+        /* Hide content initially */
+        .fv-content {
+            display: none;
+        }
+
+        .fv-content.loaded {
+            display: block;
+        }
+
+        /* Modal styles */
+        .fv-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .fv-modal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+        }
+
+        .fv-modal-content {
+            position: relative;
+            background-color: var(--fv-color-background);
+            border: 1px solid var(--fv-color-border);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+
+        .fv-modal-header {
+            padding: 16px 20px;
+            background-color: var(--fv-color-header-bg);
+            border-bottom: 1px solid var(--fv-color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .fv-modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 500;
+            color: var(--fv-color-text);
+        }
+
+        .fv-modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: var(--fv-color-muted);
+            cursor: pointer;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+
+        .fv-modal-close:hover {
+            background-color: var(--fv-color-border);
+            color: var(--fv-color-text);
+        }
+
+        .fv-modal-body {
+            padding: 20px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+
+        .fv-headers-section {
+            margin-bottom: 24px;
+        }
+
+        .fv-headers-section h4 {
+            margin: 0 0 12px 0;
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--fv-color-accent);
+            border-bottom: 2px solid var(--fv-color-accent);
+            padding-bottom: 4px;
+        }
+
+        .fv-headers-list {
+            font-family: Monaco, Menlo, "Ubuntu Mono", monospace;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .fv-header-item {
+            display: flex;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--fv-color-border);
+        }
+
+        .fv-header-item:last-child {
+            border-bottom: none;
+        }
+
+        .fv-header-name {
+            font-weight: 600;
+            color: var(--fv-color-key);
+            min-width: 200px;
+            margin-right: 16px;
+        }
+
+        .fv-header-value {
+            color: var(--fv-color-text);
+            word-break: break-all;
+            flex: 1;
+        }
+
+        .fv-headers-empty {
+            color: var(--fv-color-muted);
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+
+        /* Syntax highlighting for raw view */
+        .fv-comment {
+            color: #6a737d;
+            font-style: italic;
+        }
+
+        .fv-xml-tag {
+            color: #22863a;
+            font-weight: 600;
+        }
+
+        .fv-xml-attr {
+            color: #6f42c1;
+        }
+
+        .fv-xml-cdata {
+            color: #032f62;
+            background-color: #f6f8fa;
+        }
+
+        /* Dark theme syntax highlighting */
+        @media (prefers-color-scheme: dark) {
+            .fv-comment {
+                color: #8b949e;
+            }
+
+            .fv-xml-tag {
+                color: #7ee787;
+            }
+
+            .fv-xml-attr {
+                color: #d2a8ff;
+            }
+
+            .fv-xml-cdata {
+                color: #a5d6ff;
+                background-color: #1c2128;
+            }
         }
     </style>
 </head>
 <body>
-    <div id="loading" class="loading">
-        <div class="spinner"></div>
-        <p>Loading file...</p>
-    </div>
-
-    <div id="error" class="error" style="display: none;">
-        <h3>⚠️ Error Loading File</h3>
-        <p id="error-message"></p>
-        <button class="btn btn-primary" data-action="retry">Retry</button>
-        <a href="#" id="direct-link" class="btn btn-secondary" target="_blank">Open Direct Link</a>
-    </div>
-
-    <div id="viewer" class="viewer-container" style="display: none;">
-        <div class="viewer-header">
-            <div>
-                <h2 id="file-name" style="margin: 0; font-size: 18px;">File Viewer</h2>
-                <small id="file-info" style="opacity: 0.8;"></small>
-            </div>
-            <div class="viewer-controls">
-                <button class="btn btn-secondary" id="toggle-view-btn" style="display: none;">Tree View</button>
-                <button class="btn btn-secondary" id="expand-all-btn" style="display: none;">Expand All</button>
-                <button class="btn btn-secondary" id="collapse-all-btn" style="display: none;">Collapse All</button>
-                <button class="btn btn-secondary" id="copy-btn">Copy</button>
-                <a href="#" id="download-btn" class="btn btn-primary" download>Download</a>
-                <a href="#" id="raw-link" class="btn btn-secondary" target="_blank">View Raw</a>
-            </div>
+    <!-- Header -->
+    <div class="fv-header">
+        <div class="fv-file-info">
+            <span class="fv-format-badge" id="formatBadge">FILE</span>
+            <span class="fv-filename" id="filename">Loading...</span>
+            <span class="fv-filesize" id="filesize"></span>
         </div>
-        <div class="content-container">
-            <json-viewer id="tree-viewer" style="display: none;"></json-viewer>
-            <pre id="file-content"></pre>
+
+        <div class="fv-controls">
+            <input type="text" class="fv-search-box" id="searchBox" placeholder="Search..." />
+            <div class="fv-toggle-group">
+                <button class="fv-toggle-btn active" id="prettyBtn" data-view="pretty">Pretty</button>
+                <button class="fv-toggle-btn" id="rawBtn" data-view="raw">Raw</button>
+            </div>
+            <button class="fv-copy-url-btn" id="copyUrlBtn" title="Copy original file URL (Ctrl+U)">
+                <span class="fv-copy-icon">🔗</span>
+                Copy URL
+            </button>
+            <button class="fv-headers-btn" id="headersBtn" title="Show request/response headers (Ctrl+H)">
+                <span class="fv-headers-icon">📋</span>
+                Headers
+            </button>
+            <button class="fv-download-btn" id="downloadBtn" title="Download file (Ctrl+S)">
+                <span class="fv-download-icon">⬇️</span>
+                Download
+            </button>
         </div>
     </div>
 
+    <!-- Loading state -->
+    <div class="fv-loading" id="loading">
+        <div class="fv-spinner"></div>
+        <span>Loading file content...</span>
+    </div>
+
+    <!-- Error state -->
+    <div class="fv-error" id="error" style="display: none;">
+        <div class="fv-error-title">Failed to load file</div>
+        <div id="errorMessage"></div>
+    </div>
+
+    <!-- Content -->
+    <div class="fv-content" id="content">
+        <!-- Dynamic content will be inserted here -->
+    </div>
+
+    <!-- Headers Modal -->
+    <div class="fv-modal" id="headersModal" style="display: none;">
+        <div class="fv-modal-overlay" id="headersModalOverlay"></div>
+        <div class="fv-modal-content">
+            <div class="fv-modal-header">
+                <h3>Request & Response Headers</h3>
+                <button class="fv-modal-close" id="headersModalClose">×</button>
+            </div>
+            <div class="fv-modal-body">
+                <div class="fv-headers-section">
+                    <h4>Response Headers</h4>
+                    <div class="fv-headers-list" id="responseHeaders">
+                        <div class="fv-headers-empty">No headers available</div>
+                    </div>
+                </div>
+                <div class="fv-headers-section">
+                    <h4>Request Headers</h4>
+                    <div class="fv-headers-list" id="requestHeaders">
+                        <div class="fv-headers-empty">No headers captured</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
     <script src="lib/js-yaml.min.js"></script>
-    <script src="lib/highlight.min.js"></script>
-    <script src="lib/json-viewer.bundle.js"></script>
-    <script src="js/core/detector.js"></script>
-    <script src="js/core/formatter.js"></script>
-    <script src="js/core/highlighter.js"></script>
-    <script src="js/core/viewer.js"></script>
-    <script src="js/formats/json.js"></script>
-    <script src="js/formats/yaml.js"></script>
-    <script src="js/formats/xml.js"></script>
-    <script src="js/formats/csv.js"></script>
-    <script src="js/formats/toml.js"></script>
-    <script src="js/viewer-page.js"></script>
+    <script src="js/viewer.js"></script>
 </body>
 </html>
