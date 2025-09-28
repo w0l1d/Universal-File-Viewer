@@ -462,18 +462,15 @@ class InlineViewer {
 
     displayRawContent() {
         console.log('🦊 Displaying raw content, length:', this.currentContent.length);
-        const highlightedContent = this.highlightRawContent(this.currentContent, this.currentFormat);
 
-        // Create pre element safely
-        const preElement = document.createElement('pre');
-        preElement.className = 'fv-raw-content';
-        preElement.innerHTML = highlightedContent; // highlightedContent is already escaped by highlightRawContent
-
-        // Clear and append safely
+        // Clear content container
         this.elements.content.textContent = '';
-        this.elements.content.appendChild(preElement);
 
-        console.log('🦊 Raw content safely set');
+        // Create modern code viewer container
+        const codeViewer = this.createCodeViewer(this.currentContent, this.currentFormat);
+        this.elements.content.appendChild(codeViewer);
+
+        console.log('🦊 Modern raw content viewer created');
     }
 
     displayPrettyContent() {
@@ -528,37 +525,148 @@ class InlineViewer {
         }
     }
 
-    highlightRawContent(content, format) {
-        // Apply syntax highlighting based on format (without escaping first)
-        let highlightedContent;
+    createCodeViewer(content, format) {
+        // Create main code viewer container
+        const codeViewer = document.createElement('div');
+        codeViewer.className = 'fv-code-viewer';
 
-        console.log('🦊 Raw highlighting - Format detected:', format);
-        console.log('🦊 Raw highlighting - Content preview:', content.substring(0, 100) + '...');
+        // Create header with format info and controls
+        const header = this.createCodeViewerHeader(format, content.length);
+        codeViewer.appendChild(header);
 
-        switch (format.toLowerCase()) {
-            case 'json':
-                highlightedContent = this.highlightJson(content);
-                break;
-            case 'yaml':
-            case 'yml':
-                highlightedContent = this.highlightYaml(content);
-                break;
-            case 'xml':
-                highlightedContent = this.highlightXml(content);
-                break;
-            case 'csv':
-                highlightedContent = this.highlightCsv(content);
-                break;
-            case 'toml':
-                highlightedContent = this.highlightToml(content);
-                break;
-            default:
-                // No highlighting for unknown formats - just escape
-                highlightedContent = this.escapeHtml(content);
-                break;
+        // Create code container with line numbers and syntax highlighting
+        const codeContainer = this.createCodeContainer(content, format);
+        codeViewer.appendChild(codeContainer);
+
+        return codeViewer;
+    }
+
+    createCodeViewerHeader(format, contentLength) {
+        const header = document.createElement('div');
+        header.className = 'fv-code-header';
+
+        // Format badge
+        const formatBadge = document.createElement('span');
+        formatBadge.className = 'fv-code-format-badge';
+        formatBadge.textContent = format.toUpperCase();
+
+        // File info
+        const fileInfo = document.createElement('span');
+        fileInfo.className = 'fv-code-file-info';
+        fileInfo.textContent = `${this.formatBytes(contentLength)} • ${this.countLines(this.currentContent)} lines`;
+
+        // Copy button
+        const copyButton = document.createElement('button');
+        copyButton.className = 'fv-code-copy-btn';
+        copyButton.innerHTML = '<span class="fv-copy-icon">📋</span>Copy';
+        copyButton.addEventListener('click', () => this.copyRawContent());
+
+        header.appendChild(formatBadge);
+        header.appendChild(fileInfo);
+        header.appendChild(copyButton);
+
+        return header;
+    }
+
+    createCodeContainer(content, format) {
+        const container = document.createElement('div');
+        container.className = 'fv-code-container';
+
+        // Split content into lines for processing
+        const lines = content.split('\n');
+
+        // Create line numbers column
+        const lineNumbers = this.createLineNumbers(lines.length);
+        container.appendChild(lineNumbers);
+
+        // Create code content with syntax highlighting
+        const codeContent = this.createHighlightedCode(lines, format);
+        container.appendChild(codeContent);
+
+        return container;
+    }
+
+    createLineNumbers(lineCount) {
+        const lineNumbers = document.createElement('div');
+        lineNumbers.className = 'fv-code-line-numbers';
+
+        for (let i = 1; i <= lineCount; i++) {
+            const lineNumber = document.createElement('div');
+            lineNumber.className = 'fv-code-line-number';
+            lineNumber.textContent = i.toString();
+            lineNumbers.appendChild(lineNumber);
         }
 
-        return highlightedContent;
+        return lineNumbers;
+    }
+
+    createHighlightedCode(lines, format) {
+        const codeContent = document.createElement('div');
+        codeContent.className = 'fv-code-content';
+
+        // Create syntax highlighter instance
+        const highlighter = new ModernSyntaxHighlighter(format);
+
+        lines.forEach((line, index) => {
+            const lineElement = document.createElement('div');
+            lineElement.className = 'fv-code-line';
+            lineElement.setAttribute('data-line', index + 1);
+
+            // Apply syntax highlighting to line
+            const highlightedLine = highlighter.highlightLine(line);
+            lineElement.innerHTML = highlightedLine;
+
+            codeContent.appendChild(lineElement);
+        });
+
+        return codeContent;
+    }
+
+    // Helper methods for code viewer
+    formatBytes(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    countLines(content) {
+        // Count actual lines in content
+        return content.split('\n').length;
+    }
+
+    copyRawContent() {
+        // Copy the raw content to clipboard
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(this.currentContent).then(() => {
+                this.showCopyFeedback();
+            }).catch(err => {
+                console.error('🦊 Clipboard copy failed:', err);
+                this.fallbackCopyRawContent();
+            });
+        } else {
+            this.fallbackCopyRawContent();
+        }
+    }
+
+    fallbackCopyRawContent() {
+        // Create temporary textarea for fallback copy
+        const textarea = document.createElement('textarea');
+        textarea.value = this.currentContent;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+            document.execCommand('copy');
+            this.showCopyFeedback();
+        } catch (err) {
+            console.error('🦊 Fallback copy failed:', err);
+        } finally {
+            document.body.removeChild(textarea);
+        }
     }
 
     highlightJson(content) {
@@ -1303,6 +1411,169 @@ class InlineViewer {
     }
 }
 
+/**
+ * Modern Syntax Highlighter
+ * Secure, performant syntax highlighting for multiple formats
+ */
+class ModernSyntaxHighlighter {
+    constructor(format) {
+        this.format = format.toLowerCase();
+        this.tokens = this.getTokenDefinitions();
+    }
+
+    getTokenDefinitions() {
+        const base = {
+            whitespace: /^(\s+)/,
+            lineBreak: /^(\r?\n)/
+        };
+
+        switch (this.format) {
+            case 'json':
+                return {
+                    ...base,
+                    string: /^("(?:[^"\\\\]|\\\\.)*")/,
+                    number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
+                    boolean: /^(true|false)\b/,
+                    null: /^(null)\b/,
+                    punctuation: /^([{}[\],:])/,
+                    identifier: /^([a-zA-Z_$][a-zA-Z0-9_$]*)/
+                };
+
+            case 'yaml':
+            case 'yml':
+                return {
+                    ...base,
+                    comment: /^(#.*$)/m,
+                    string: /^('(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*")/,
+                    number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
+                    boolean: /^(true|false|yes|no|on|off)\b/i,
+                    null: /^(null|~)\b/,
+                    key: /^([a-zA-Z_][a-zA-Z0-9_\-]*)\s*:/,
+                    listMarker: /^(\s*-\s)/,
+                    folding: /^(\s*[>|][+-]?)/
+                };
+
+            case 'xml':
+                return {
+                    ...base,
+                    comment: /^(<!--[\s\S]*?-->)/,
+                    cdata: /^(<!\[CDATA\[[\s\S]*?\]\]>)/,
+                    xmlDecl: /^(<\?xml[\s\S]*?\?>)/,
+                    processingInstruction: /^(<\?[\s\S]*?\?>)/,
+                    tagOpen: /^(<\/?[a-zA-Z][a-zA-Z0-9:-]*)/,
+                    tagClose: /^(\s*\/?>)/,
+                    attribute: /^(\s+[a-zA-Z][a-zA-Z0-9:-]*\s*=\s*)/,
+                    attributeValue: /^("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*')/,
+                    text: /^([^<]+)/
+                };
+
+            case 'csv':
+                return {
+                    ...base,
+                    quotedField: /^("(?:[^"\\\\]|\\\\.)*")/,
+                    field: /^([^,\r\n]+)/,
+                    comma: /^(,)/
+                };
+
+            case 'toml':
+                return {
+                    ...base,
+                    comment: /^(#.*$)/m,
+                    section: /^(\[.*?\])/,
+                    key: /^([a-zA-Z_][a-zA-Z0-9_.-]*)\s*=/,
+                    string: /^('(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"|"""[\s\S]*?""")/,
+                    number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
+                    boolean: /^(true|false)\b/,
+                    datetime: /^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/
+                };
+
+            default:
+                return base;
+        }
+    }
+
+    highlightLine(line) {
+        if (!line.trim()) {
+            return this.escapeHtml(line);
+        }
+
+        let highlighted = '';
+        let position = 0;
+        const length = line.length;
+
+        while (position < length) {
+            let matched = false;
+
+            // Try to match each token type
+            for (const [tokenType, pattern] of Object.entries(this.tokens)) {
+                const match = line.slice(position).match(pattern);
+                if (match) {
+                    const text = match[1] || match[0];
+                    highlighted += this.wrapToken(text, tokenType);
+                    position += text.length;
+                    matched = true;
+                    break;
+                }
+            }
+
+            // If no token matched, consume one character
+            if (!matched) {
+                highlighted += this.escapeHtml(line[position]);
+                position++;
+            }
+        }
+
+        return highlighted;
+    }
+
+    wrapToken(text, tokenType) {
+        const escapedText = this.escapeHtml(text);
+
+        switch (tokenType) {
+            case 'string':
+                return `<span class="fv-syntax-string">${escapedText}</span>`;
+            case 'number':
+                return `<span class="fv-syntax-number">${escapedText}</span>`;
+            case 'boolean':
+                return `<span class="fv-syntax-boolean">${escapedText}</span>`;
+            case 'null':
+                return `<span class="fv-syntax-null">${escapedText}</span>`;
+            case 'comment':
+                return `<span class="fv-syntax-comment">${escapedText}</span>`;
+            case 'key':
+                return `<span class="fv-syntax-key">${escapedText}</span>`;
+            case 'punctuation':
+            case 'comma':
+            case 'listMarker':
+                return `<span class="fv-syntax-punctuation">${escapedText}</span>`;
+            case 'tagOpen':
+            case 'tagClose':
+                return `<span class="fv-syntax-tag">${escapedText}</span>`;
+            case 'attribute':
+                return `<span class="fv-syntax-attribute">${escapedText}</span>`;
+            case 'attributeValue':
+                return `<span class="fv-syntax-string">${escapedText}</span>`;
+            case 'section':
+                return `<span class="fv-syntax-section">${escapedText}</span>`;
+            case 'datetime':
+                return `<span class="fv-syntax-datetime">${escapedText}</span>`;
+            case 'xmlDecl':
+            case 'processingInstruction':
+                return `<span class="fv-syntax-pi">${escapedText}</span>`;
+            case 'cdata':
+                return `<span class="fv-syntax-cdata">${escapedText}</span>`;
+            default:
+                return escapedText;
+        }
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+}
+
 // Initialize viewer when page loads
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🦊 Inline viewer initializing...');
@@ -1312,4 +1583,5 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for debugging
 if (typeof globalThis !== 'undefined') {
     globalThis.InlineViewer = InlineViewer;
+    globalThis.ModernSyntaxHighlighter = ModernSyntaxHighlighter;
 }
