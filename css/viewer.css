@@ -643,6 +643,22 @@ body {
   color: var(--fv-syntax-operator);
 }
 
+.fv-syntax-listmarker {
+  color: var(--fv-syntax-operator);
+  font-weight: 600;
+}
+
+.fv-syntax-variable {
+  color: #ff6b35;
+  font-weight: 500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fv-syntax-variable {
+    color: #ffab70;
+  }
+}
+
 .fv-syntax-tag {
   color: #0066cc;
   font-weight: 500;

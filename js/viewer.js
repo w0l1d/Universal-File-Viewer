@@ -1422,40 +1422,38 @@ class ModernSyntaxHighlighter {
     }
 
     getTokenDefinitions() {
-        const base = {
-            whitespace: /^(\s+)/,
-            lineBreak: /^(\r?\n)/
-        };
-
+        // Order matters for token matching!
         switch (this.format) {
             case 'json':
                 return {
-                    ...base,
                     string: /^("(?:[^"\\\\]|\\\\.)*")/,
                     number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
                     boolean: /^(true|false)\b/,
                     null: /^(null)\b/,
                     punctuation: /^([{}[\],:])/,
+                    whitespace: /^(\s+)/,
                     identifier: /^([a-zA-Z_$][a-zA-Z0-9_$]*)/
                 };
 
             case 'yaml':
             case 'yml':
-                return {
-                    ...base,
-                    comment: /^(#.*$)/m,
-                    string: /^('(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*")/,
-                    number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
-                    boolean: /^(true|false|yes|no|on|off)\b/i,
-                    null: /^(null|~)\b/,
-                    key: /^([a-zA-Z_][a-zA-Z0-9_\-]*)\s*:/,
-                    listMarker: /^(\s*-\s)/,
-                    folding: /^(\s*[>|][+-]?)/
-                };
+                return [
+                    ['comment', /^(#.*)/],
+                    ['variable', /^(\$\{[^}]+\})/],
+                    ['string', /^("(?:[^"\\\\]|\\\\.)*")/],
+                    ['string', /^('(?:[^'\\\\]|\\\\.)*')/],
+                    ['listMarker', /^(\s*-\s+)/],
+                    ['key', /^([a-zA-Z_][a-zA-Z0-9_\-]*)\s*(?=:)/],
+                    ['colon', /^(:)/],
+                    ['boolean', /^(true|false|yes|no|on|off)\b/i],
+                    ['null', /^(null|~)\b/],
+                    ['number', /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/],
+                    ['whitespace', /^(\s+)/],
+                    ['dash', /^(-)/]
+                ];
 
             case 'xml':
                 return {
-                    ...base,
                     comment: /^(<!--[\s\S]*?-->)/,
                     cdata: /^(<!\[CDATA\[[\s\S]*?\]\]>)/,
                     xmlDecl: /^(<\?xml[\s\S]*?\?>)/,
@@ -1464,31 +1462,34 @@ class ModernSyntaxHighlighter {
                     tagClose: /^(\s*\/?>)/,
                     attribute: /^(\s+[a-zA-Z][a-zA-Z0-9:-]*\s*=\s*)/,
                     attributeValue: /^("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*')/,
+                    whitespace: /^(\s+)/,
                     text: /^([^<]+)/
                 };
 
             case 'csv':
                 return {
-                    ...base,
                     quotedField: /^("(?:[^"\\\\]|\\\\.)*")/,
                     field: /^([^,\r\n]+)/,
-                    comma: /^(,)/
+                    comma: /^(,)/,
+                    whitespace: /^(\s+)/
                 };
 
             case 'toml':
                 return {
-                    ...base,
-                    comment: /^(#.*$)/m,
+                    comment: /^(#.*)/,
                     section: /^(\[.*?\])/,
                     key: /^([a-zA-Z_][a-zA-Z0-9_.-]*)\s*=/,
                     string: /^('(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"|"""[\s\S]*?""")/,
                     number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
                     boolean: /^(true|false)\b/,
-                    datetime: /^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/
+                    datetime: /^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/,
+                    whitespace: /^(\s+)/
                 };
 
             default:
-                return base;
+                return {
+                    whitespace: /^(\s+)/
+                };
         }
     }
 
@@ -1504,8 +1505,12 @@ class ModernSyntaxHighlighter {
         while (position < length) {
             let matched = false;
 
-            // Try to match each token type
-            for (const [tokenType, pattern] of Object.entries(this.tokens)) {
+            // Try to match each token type (handle both array and object formats)
+            const tokenEntries = Array.isArray(this.tokens)
+                ? this.tokens
+                : Object.entries(this.tokens);
+
+            for (const [tokenType, pattern] of tokenEntries) {
                 const match = line.slice(position).match(pattern);
                 if (match) {
                     const text = match[1] || match[0];
@@ -1544,8 +1549,13 @@ class ModernSyntaxHighlighter {
                 return `<span class="fv-syntax-key">${escapedText}</span>`;
             case 'punctuation':
             case 'comma':
-            case 'listMarker':
+            case 'colon':
+            case 'dash':
                 return `<span class="fv-syntax-punctuation">${escapedText}</span>`;
+            case 'listMarker':
+                return `<span class="fv-syntax-listmarker">${escapedText}</span>`;
+            case 'variable':
+                return `<span class="fv-syntax-variable">${escapedText}</span>`;
             case 'tagOpen':
             case 'tagClose':
                 return `<span class="fv-syntax-tag">${escapedText}</span>`;
