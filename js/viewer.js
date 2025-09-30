@@ -28,6 +28,7 @@ class InlineViewer {
             formatBadge: document.getElementById('formatBadge'),
             filename: document.getElementById('filename'),
             filesize: document.getElementById('filesize'),
+            metadata: document.getElementById('metadata'),
             searchBox: document.getElementById('searchBox'),
             prettyBtn: document.getElementById('prettyBtn'),
             rawBtn: document.getElementById('rawBtn'),
@@ -63,9 +64,7 @@ class InlineViewer {
         // Search functionality
         this.elements.searchBox.addEventListener('input', (e) => {
             this.searchTerm = e.target.value.toLowerCase();
-            if (this.currentView === 'pretty') {
-                this.highlightSearchResults();
-            }
+            this.highlightSearchResults();
         });
 
         // Keyboard shortcuts
@@ -300,8 +299,8 @@ class InlineViewer {
         console.log('🦊 Populating headers with fileData:', this.fileData);
 
         // Clear existing headers
-        this.elements.responseHeaders.innerHTML = '';
-        this.elements.requestHeaders.innerHTML = '';
+        this.elements.responseHeaders.textContent = '';
+        this.elements.requestHeaders.textContent = '';
 
         // Populate response headers - check multiple sources
         let headers = null;
@@ -312,36 +311,71 @@ class InlineViewer {
         }
 
         if (headers && Object.keys(headers).length > 0) {
-            const responseHeadersHtml = Object.entries(headers)
-                .map(([name, value]) =>
-                    `<div class="fv-header-item">
-                        <div class="fv-header-name">${this.escapeHtml(name)}:</div>
-                        <div class="fv-header-value">${this.escapeHtml(value)}</div>
-                    </div>`
-                ).join('');
+            Object.entries(headers).forEach(([name, value]) => {
+                const headerItem = document.createElement('div');
+                headerItem.className = 'fv-header-item';
 
-            this.elements.responseHeaders.innerHTML = responseHeadersHtml; // Safe: responseHeadersHtml is escaped via escapeHtml()
+                const headerName = document.createElement('div');
+                headerName.className = 'fv-header-name';
+                headerName.textContent = name + ':';
+
+                const headerValue = document.createElement('div');
+                headerValue.className = 'fv-header-value';
+                headerValue.textContent = value;
+
+                headerItem.appendChild(headerName);
+                headerItem.appendChild(headerValue);
+                this.elements.responseHeaders.appendChild(headerItem);
+            });
         } else {
-            this.elements.responseHeaders.innerHTML = '<div class="fv-headers-empty">No response headers available</div>';
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'fv-headers-empty';
+            emptyMessage.textContent = 'No response headers available';
+            this.elements.responseHeaders.appendChild(emptyMessage);
         }
 
-        // Populate request headers (basic ones that were likely sent)
-        const requestHeadersData = {
-            'Accept': '*/*',
-            'Accept-Language': navigator.language || 'en-US,en;q=0.9',
-            'User-Agent': navigator.userAgent,
-            'Referrer': document.referrer || 'No referrer'
-        };
+        // Populate request headers - only show what we can actually see
+        const requestHeadersData = {};
 
-        const requestHeadersHtml = Object.entries(requestHeadersData)
-            .map(([name, value]) =>
-                `<div class="fv-header-item">
-                    <div class="fv-header-name">${this.escapeHtml(name)}:</div>
-                    <div class="fv-header-value">${this.escapeHtml(value)}</div>
-                </div>`
-            ).join('');
+        // User-Agent is always available
+        if (navigator.userAgent) {
+            requestHeadersData['User-Agent'] = navigator.userAgent;
+        }
 
-        this.elements.requestHeaders.innerHTML = requestHeadersHtml;
+        // Accept-Language is available
+        if (navigator.language) {
+            requestHeadersData['Accept-Language'] = navigator.language;
+        }
+
+        // Referer only if there is one
+        if (document.referrer) {
+            requestHeadersData['Referer'] = document.referrer;
+        }
+
+        // Show message if no headers available
+        if (Object.keys(requestHeadersData).length === 0) {
+            const emptyMessage = document.createElement('div');
+            emptyMessage.className = 'fv-headers-empty';
+            emptyMessage.textContent = 'Request headers are not accessible from browser extensions for security reasons';
+            this.elements.requestHeaders.appendChild(emptyMessage);
+        } else {
+            Object.entries(requestHeadersData).forEach(([name, value]) => {
+                const headerItem = document.createElement('div');
+                headerItem.className = 'fv-header-item';
+
+                const headerName = document.createElement('div');
+                headerName.className = 'fv-header-name';
+                headerName.textContent = name + ':';
+
+                const headerValue = document.createElement('div');
+                headerValue.className = 'fv-header-value';
+                headerValue.textContent = value;
+
+                headerItem.appendChild(headerName);
+                headerItem.appendChild(headerValue);
+                this.elements.requestHeaders.appendChild(headerItem);
+            });
+        }
     }
 
     async loadFileFromHash() {
@@ -409,6 +443,12 @@ class InlineViewer {
 
             console.log('🦊 Fetch response:', response);
 
+            // Store response headers even for error responses
+            if (response && response.headers) {
+                this.responseHeaders = response.headers;
+                console.log('🦊 Response headers stored:', this.responseHeaders);
+            }
+
             if (!response || !response.success) {
                 const errorMsg = response?.error || 'Unknown error occurred';
                 throw new Error(errorMsg);
@@ -416,15 +456,12 @@ class InlineViewer {
 
             this.currentContent = response.content;
 
-            // Store response headers if available
-            if (response.headers) {
-                this.responseHeaders = response.headers;
-                console.log('🦊 Response headers stored:', this.responseHeaders);
-            }
-
             // Update file size
             const sizeKB = (response.size / 1024).toFixed(1);
             this.elements.filesize.textContent = `${sizeKB}KB`;
+
+            // Update metadata
+            this.updateMetadata(response);
 
             // Track usage
             this.sendMessage({
@@ -433,12 +470,28 @@ class InlineViewer {
             });
 
             console.log('🦊 About to display content, length:', this.currentContent.length);
+            this.enableViewToggle();
             this.displayContent();
 
         } catch (error) {
             console.error('🦊 Failed to fetch file content:', error);
+            this.disableViewToggle();
             this.showError(`Failed to load file: ${error.message}`);
         }
+    }
+
+    disableViewToggle() {
+        // Disable view toggle buttons when there's no content
+        this.elements.prettyBtn.disabled = true;
+        this.elements.rawBtn.disabled = true;
+        this.elements.prettyBtn.classList.remove('active');
+        this.elements.rawBtn.classList.remove('active');
+    }
+
+    enableViewToggle() {
+        // Enable view toggle buttons when content is loaded
+        this.elements.prettyBtn.disabled = false;
+        this.elements.rawBtn.disabled = false;
     }
 
     displayContent() {
@@ -558,7 +611,13 @@ class InlineViewer {
         // Copy button
         const copyButton = document.createElement('button');
         copyButton.className = 'fv-code-copy-btn';
-        copyButton.innerHTML = '<span class="fv-copy-icon">📋</span>Copy';
+
+        const copyIcon = document.createElement('span');
+        copyIcon.className = 'fv-copy-icon';
+        copyIcon.textContent = '📋';
+
+        copyButton.appendChild(copyIcon);
+        copyButton.appendChild(document.createTextNode('Copy'));
         copyButton.addEventListener('click', () => this.copyRawContent());
 
         header.appendChild(formatBadge);
@@ -604,22 +663,83 @@ class InlineViewer {
         const codeContent = document.createElement('div');
         codeContent.className = 'fv-code-content';
 
-        // Create syntax highlighter instance
-        const highlighter = new ModernSyntaxHighlighter(format);
+        // Create a single pre/code block for Prism.js
+        const preElement = document.createElement('pre');
+        preElement.className = 'fv-code-pre';
+        const codeElement = document.createElement('code');
+
+        // Map our format names to Prism.js language classes
+        const languageMap = {
+            'json': 'language-json',
+            'yaml': 'language-yaml',
+            'yml': 'language-yaml',
+            'xml': 'language-markup',
+            'csv': 'language-csv',
+            'toml': 'language-toml'
+        };
+
+        const languageClass = languageMap[format.toLowerCase()] || 'language-none';
+        codeElement.className = languageClass;
+        codeElement.textContent = lines.join('\n');
+
+        preElement.appendChild(codeElement);
+
+        // Apply Prism.js highlighting
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightElement(codeElement);
+        }
+
+        // Split the highlighted content into individual lines
+        this.wrapPrismOutputInLines(preElement, codeContent);
+
+        return codeContent;
+    }
+
+    wrapPrismOutputInLines(preElement, container) {
+        // Extract the highlighted content from Prism
+        const highlightedCode = preElement.querySelector('code');
+        const lines = highlightedCode.innerHTML.split('\n');
 
         lines.forEach((line, index) => {
             const lineElement = document.createElement('div');
             lineElement.className = 'fv-code-line';
             lineElement.setAttribute('data-line', index + 1);
+            lineElement.innerHTML = line || '&nbsp;'; // Handle empty lines
 
-            // Apply syntax highlighting to line
-            const highlightedLine = highlighter.highlightLine(line);
-            lineElement.innerHTML = highlightedLine;
+            // Add synchronized hover between line numbers and code
+            lineElement.addEventListener('mouseenter', () => {
+                const lineNumber = document.querySelectorAll('.fv-code-line-number')[index];
+                if (lineNumber) {
+                    lineNumber.classList.add('hover-highlight');
+                }
+            });
 
-            codeContent.appendChild(lineElement);
+            lineElement.addEventListener('mouseleave', () => {
+                const lineNumber = document.querySelectorAll('.fv-code-line-number')[index];
+                if (lineNumber) {
+                    lineNumber.classList.remove('hover-highlight');
+                }
+            });
+
+            container.appendChild(lineElement);
         });
 
-        return codeContent;
+        // Also add hover from line numbers to code lines
+        document.querySelectorAll('.fv-code-line-number').forEach((lineNum, index) => {
+            lineNum.addEventListener('mouseenter', () => {
+                const codeLine = container.querySelectorAll('.fv-code-line')[index];
+                if (codeLine) {
+                    codeLine.classList.add('hover-highlight');
+                }
+            });
+
+            lineNum.addEventListener('mouseleave', () => {
+                const codeLine = container.querySelectorAll('.fv-code-line')[index];
+                if (codeLine) {
+                    codeLine.classList.remove('hover-highlight');
+                }
+            });
+        });
     }
 
     // Helper methods for code viewer
@@ -669,127 +789,6 @@ class InlineViewer {
         }
     }
 
-    highlightJson(content) {
-        // Escape HTML first
-        const escapedContent = this.escapeHtml(content);
-
-        return escapedContent
-            // Strings (including keys)
-            .replace(/&quot;([^&]*?)&quot;/g, '<span class="fv-tree-value string">&quot;$1&quot;</span>')
-            // Numbers
-            .replace(/\b(-?\d+\.?\d*([eE][+-]?\d+)?)\b/g, '<span class="fv-tree-value number">$1</span>')
-            // Booleans
-            .replace(/\b(true|false)\b/g, '<span class="fv-tree-value boolean">$1</span>')
-            // Null
-            .replace(/\bnull\b/g, '<span class="fv-tree-value null">null</span>')
-            // Structural characters
-            .replace(/([{}[\],:])/g, '<span class="fv-tree-bracket">$1</span>');
-    }
-
-    highlightYaml(content) {
-        // Escape HTML first
-        const escapedContent = this.escapeHtml(content);
-
-        return escapedContent
-            // YAML comments
-            .replace(/(#.*$)/gm, '<span class="fv-comment">$1</span>')
-            // YAML list markers
-            .replace(/(\n\s*)(-)(\s)/g, '$1<span class="fv-tree-colon">$2</span>$3')
-            // YAML keys (word followed by colon)
-            .replace(/([a-zA-Z_][a-zA-Z0-9_\-]*)\s*:/g, '<span class="fv-tree-key">$1</span><span class="fv-tree-colon">:</span>')
-            // YAML strings (quoted values)
-            .replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, '<span class="fv-tree-string">"$1"</span>')
-            .replace(/'([^'\\]*(\\.[^'\\]*)*)'/g, '<span class="fv-tree-string">\'$1\'</span>')
-            // YAML numbers
-            .replace(/(\s|^|:)(-?\d+\.?\d*)\s*$/gm, '$1<span class="fv-tree-number">$2</span>')
-            // YAML booleans
-            .replace(/(\s|^|:)(true|false|yes|no|on|off)\s*$/gmi, '$1<span class="fv-tree-boolean">$2</span>')
-            // YAML null values
-            .replace(/(\s|^|:)(null|~)\s*$/gmi, '$1<span class="fv-tree-null">$2</span>');
-    }
-
-    highlightXml(content) {
-        // Escape HTML first
-        const escapedContent = this.escapeHtml(content);
-
-        return escapedContent
-            // Comments first
-            .replace(/(&lt;!--.*?--&gt;)/gs, '<span class="fv-comment">$1</span>')
-            // CDATA sections
-            .replace(/(&lt;!\[CDATA\[.*?\]\]&gt;)/gs, '<span class="fv-xml-cdata">$1</span>')
-            // XML tags
-            .replace(/(&lt;\/?)([\w:-]+)([^&]*?)(&gt;)/g, '$1<span class="fv-xml-tag">$2</span>$3$4')
-            // Attributes (simple version)
-            .replace(/(\s)([\w:-]+)(=)(&quot;[^&]*?&quot;)/g, '$1<span class="fv-xml-attr">$2</span>$3<span class="fv-tree-value string">$4</span>');
-    }
-
-    highlightCsv(content) {
-        // Escape HTML first
-        const escapedContent = this.escapeHtml(content);
-
-        const lines = escapedContent.split('\n');
-        return lines.map((line, index) => {
-            if (!line.trim()) return line;
-
-            if (index === 0) {
-                // Header row - simple comma separation
-                return line.replace(/([^,]+)/g, (match) => {
-                    return `<span class="fv-tree-key">${match.trim()}</span>`;
-                });
-            } else {
-                // Data rows - only highlight quoted strings
-                return line.replace(/&quot;([^&]*)&quot;/g, '<span class="fv-tree-value string">&quot;$1&quot;</span>');
-            }
-        }).join('\n');
-    }
-
-    highlightToml(content) {
-        // Escape HTML first
-        const escapedContent = this.escapeHtml(content);
-
-        const lines = escapedContent.split('\n');
-        const highlightedLines = lines.map(line => {
-            if (!line.trim()) {
-                return line;
-            }
-
-            let highlightedLine = line;
-
-            // Comments first
-            if (line.includes('#')) {
-                const commentIndex = line.indexOf('#');
-                const beforeComment = line.substring(0, commentIndex);
-                const comment = line.substring(commentIndex);
-                highlightedLine = beforeComment + `<span class="fv-comment">${comment}</span>`;
-            }
-
-            // Section headers
-            if (line.match(/^\s*\[([^\]]+)\]/)) {
-                highlightedLine = highlightedLine.replace(
-                    /^(\s*)\[([^\]]+)\]/,
-                    '$1<span class="fv-tree-bracket">[</span><span class="fv-xml-tag">$2</span><span class="fv-tree-bracket">]</span>'
-                );
-            }
-
-            // Key-value pairs
-            if (line.match(/^\s*[a-zA-Z_][a-zA-Z0-9_-]*\s*=/)) {
-                highlightedLine = highlightedLine.replace(
-                    /^(\s*)([a-zA-Z_][a-zA-Z0-9_-]*)\s*(=)/,
-                    '$1<span class="fv-tree-key">$2</span><span class="fv-tree-colon"> $3 </span>'
-                );
-            }
-
-            // Strings in quotes
-            highlightedLine = highlightedLine.replace(
-                /(&quot;)([^&]*?)(&quot;)/g,
-                '<span class="fv-tree-value string">$1$2$3</span>'
-            );
-
-            return highlightedLine;
-        });
-
-        return highlightedLines.join('\n');
-    }
 
     parseContent(content, format) {
         // Input validation and security checks
@@ -1168,6 +1167,9 @@ class InlineViewer {
     switchView(view) {
         if (view === this.currentView) return;
 
+        // Don't allow view switching if there's no content
+        if (!this.currentContent) return;
+
         this.currentView = view;
 
         // Update button states
@@ -1183,10 +1185,10 @@ class InlineViewer {
     }
 
     highlightSearchResults() {
-        if (!this.searchTerm || this.currentView !== 'pretty') return;
+        if (!this.searchTerm) return;
 
         // Remove existing highlights
-        const existing = this.elements.content.querySelectorAll('.fv-highlight');
+        const existing = this.elements.content.querySelectorAll('.fv-search-highlight, .fv-highlight');
         existing.forEach(el => {
             const parent = el.parentNode;
             parent.replaceChild(document.createTextNode(el.textContent), el);
@@ -1195,7 +1197,16 @@ class InlineViewer {
 
         if (this.searchTerm.length < 2) return;
 
-        // Add new highlights
+        // Different highlighting strategies for pretty vs raw view
+        if (this.currentView === 'raw') {
+            this.highlightSearchInRaw();
+        } else {
+            this.highlightSearchInPretty();
+        }
+    }
+
+    highlightSearchInPretty() {
+        // Add new highlights in tree view
         const walker = document.createTreeWalker(
             this.elements.content,
             NodeFilter.SHOW_TEXT,
@@ -1231,6 +1242,67 @@ class InlineViewer {
 
                 textNode.parentNode.replaceChild(fragment, textNode);
             }
+        });
+    }
+
+    highlightSearchInRaw() {
+        // Highlight search matches in raw code view
+        const codeLines = this.elements.content.querySelectorAll('.fv-code-line');
+
+        codeLines.forEach(lineElement => {
+            const walker = document.createTreeWalker(
+                lineElement,
+                NodeFilter.SHOW_TEXT,
+                null,
+                false
+            );
+
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) {
+                // Skip text nodes inside syntax highlighting spans for cleaner highlighting
+                textNodes.push(node);
+            }
+
+            textNodes.forEach(textNode => {
+                const text = textNode.textContent;
+                const lowerText = text.toLowerCase();
+                let searchIndex = 0;
+                const matches = [];
+
+                // Find all occurrences in this text node
+                while ((searchIndex = lowerText.indexOf(this.searchTerm, searchIndex)) !== -1) {
+                    matches.push(searchIndex);
+                    searchIndex += this.searchTerm.length;
+                }
+
+                if (matches.length > 0) {
+                    const fragment = document.createDocumentFragment();
+                    let lastIndex = 0;
+
+                    matches.forEach(matchIndex => {
+                        // Add text before match
+                        if (matchIndex > lastIndex) {
+                            fragment.appendChild(document.createTextNode(text.substring(lastIndex, matchIndex)));
+                        }
+
+                        // Add highlighted match
+                        const highlight = document.createElement('span');
+                        highlight.className = 'fv-search-highlight';
+                        highlight.textContent = text.substring(matchIndex, matchIndex + this.searchTerm.length);
+                        fragment.appendChild(highlight);
+
+                        lastIndex = matchIndex + this.searchTerm.length;
+                    });
+
+                    // Add remaining text
+                    if (lastIndex < text.length) {
+                        fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                    }
+
+                    textNode.parentNode.replaceChild(fragment, textNode);
+                }
+            });
         });
     }
 
@@ -1387,6 +1459,61 @@ class InlineViewer {
         return value;
     }
 
+    updateMetadata(response) {
+        if (!this.elements.metadata || !response) return;
+
+        // Clear existing metadata
+        this.elements.metadata.textContent = '';
+
+        const headers = response.headers || this.responseHeaders || {};
+
+        // Add Content-Type if available
+        if (response.contentType || headers['content-type']) {
+            const contentType = response.contentType || headers['content-type'];
+            const item = this.createMetadataItem('Type:', contentType.split(';')[0]);
+            this.elements.metadata.appendChild(item);
+        }
+
+        // Add Last-Modified if available
+        if (headers['last-modified']) {
+            const lastModified = new Date(headers['last-modified']);
+            const item = this.createMetadataItem('Modified:', lastModified.toLocaleDateString());
+            this.elements.metadata.appendChild(item);
+        }
+
+        // Add Content-Encoding if available
+        if (headers['content-encoding']) {
+            const item = this.createMetadataItem('Encoding:', headers['content-encoding']);
+            this.elements.metadata.appendChild(item);
+        }
+
+        // Add ETag if available (shortened)
+        if (headers['etag']) {
+            const etag = headers['etag'].substring(0, 12) + (headers['etag'].length > 12 ? '...' : '');
+            const item = this.createMetadataItem('ETag:', etag);
+            this.elements.metadata.appendChild(item);
+        }
+
+        // Add line count
+        const lineCount = this.countLines(this.currentContent);
+        const item = this.createMetadataItem('Lines:', lineCount.toString());
+        this.elements.metadata.appendChild(item);
+    }
+
+    createMetadataItem(label, value) {
+        const item = document.createElement('span');
+        item.className = 'fv-metadata-item';
+
+        const labelSpan = document.createElement('span');
+        labelSpan.className = 'fv-metadata-label';
+        labelSpan.textContent = label;
+
+        item.appendChild(labelSpan);
+        item.appendChild(document.createTextNode(' ' + value));
+
+        return item;
+    }
+
     sendMessage(message) {
         return new Promise((resolve, reject) => {
             console.log('🦊 Sending message:', message);
@@ -1411,178 +1538,6 @@ class InlineViewer {
     }
 }
 
-/**
- * Modern Syntax Highlighter
- * Secure, performant syntax highlighting for multiple formats
- */
-class ModernSyntaxHighlighter {
-    constructor(format) {
-        this.format = format.toLowerCase();
-        this.tokens = this.getTokenDefinitions();
-    }
-
-    getTokenDefinitions() {
-        // Order matters for token matching!
-        switch (this.format) {
-            case 'json':
-                return {
-                    string: /^("(?:[^"\\\\]|\\\\.)*")/,
-                    number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
-                    boolean: /^(true|false)\b/,
-                    null: /^(null)\b/,
-                    punctuation: /^([{}[\],:])/,
-                    whitespace: /^(\s+)/,
-                    identifier: /^([a-zA-Z_$][a-zA-Z0-9_$]*)/
-                };
-
-            case 'yaml':
-            case 'yml':
-                return [
-                    ['comment', /^(#.*)/],
-                    ['variable', /^(\$\{[^}]+\})/],
-                    ['string', /^("(?:[^"\\\\]|\\\\.)*")/],
-                    ['string', /^('(?:[^'\\\\]|\\\\.)*')/],
-                    ['listMarker', /^(\s*-\s+)/],
-                    ['key', /^([a-zA-Z_][a-zA-Z0-9_\-]*)\s*(?=:)/],
-                    ['colon', /^(:)/],
-                    ['boolean', /^(true|false|yes|no|on|off)\b/i],
-                    ['null', /^(null|~)\b/],
-                    ['number', /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/],
-                    ['whitespace', /^(\s+)/],
-                    ['dash', /^(-)/]
-                ];
-
-            case 'xml':
-                return {
-                    comment: /^(<!--[\s\S]*?-->)/,
-                    cdata: /^(<!\[CDATA\[[\s\S]*?\]\]>)/,
-                    xmlDecl: /^(<\?xml[\s\S]*?\?>)/,
-                    processingInstruction: /^(<\?[\s\S]*?\?>)/,
-                    tagOpen: /^(<\/?[a-zA-Z][a-zA-Z0-9:-]*)/,
-                    tagClose: /^(\s*\/?>)/,
-                    attribute: /^(\s+[a-zA-Z][a-zA-Z0-9:-]*\s*=\s*)/,
-                    attributeValue: /^("(?:[^"\\\\]|\\\\.)*"|'(?:[^'\\\\]|\\\\.)*')/,
-                    whitespace: /^(\s+)/,
-                    text: /^([^<]+)/
-                };
-
-            case 'csv':
-                return {
-                    quotedField: /^("(?:[^"\\\\]|\\\\.)*")/,
-                    field: /^([^,\r\n]+)/,
-                    comma: /^(,)/,
-                    whitespace: /^(\s+)/
-                };
-
-            case 'toml':
-                return {
-                    comment: /^(#.*)/,
-                    section: /^(\[.*?\])/,
-                    key: /^([a-zA-Z_][a-zA-Z0-9_.-]*)\s*=/,
-                    string: /^('(?:[^'\\\\]|\\\\.)*'|"(?:[^"\\\\]|\\\\.)*"|"""[\s\S]*?""")/,
-                    number: /^(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/,
-                    boolean: /^(true|false)\b/,
-                    datetime: /^(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/,
-                    whitespace: /^(\s+)/
-                };
-
-            default:
-                return {
-                    whitespace: /^(\s+)/
-                };
-        }
-    }
-
-    highlightLine(line) {
-        if (!line.trim()) {
-            return this.escapeHtml(line);
-        }
-
-        let highlighted = '';
-        let position = 0;
-        const length = line.length;
-
-        while (position < length) {
-            let matched = false;
-
-            // Try to match each token type (handle both array and object formats)
-            const tokenEntries = Array.isArray(this.tokens)
-                ? this.tokens
-                : Object.entries(this.tokens);
-
-            for (const [tokenType, pattern] of tokenEntries) {
-                const match = line.slice(position).match(pattern);
-                if (match) {
-                    const text = match[1] || match[0];
-                    highlighted += this.wrapToken(text, tokenType);
-                    position += text.length;
-                    matched = true;
-                    break;
-                }
-            }
-
-            // If no token matched, consume one character
-            if (!matched) {
-                highlighted += this.escapeHtml(line[position]);
-                position++;
-            }
-        }
-
-        return highlighted;
-    }
-
-    wrapToken(text, tokenType) {
-        const escapedText = this.escapeHtml(text);
-
-        switch (tokenType) {
-            case 'string':
-                return `<span class="fv-syntax-string">${escapedText}</span>`;
-            case 'number':
-                return `<span class="fv-syntax-number">${escapedText}</span>`;
-            case 'boolean':
-                return `<span class="fv-syntax-boolean">${escapedText}</span>`;
-            case 'null':
-                return `<span class="fv-syntax-null">${escapedText}</span>`;
-            case 'comment':
-                return `<span class="fv-syntax-comment">${escapedText}</span>`;
-            case 'key':
-                return `<span class="fv-syntax-key">${escapedText}</span>`;
-            case 'punctuation':
-            case 'comma':
-            case 'colon':
-            case 'dash':
-                return `<span class="fv-syntax-punctuation">${escapedText}</span>`;
-            case 'listMarker':
-                return `<span class="fv-syntax-listmarker">${escapedText}</span>`;
-            case 'variable':
-                return `<span class="fv-syntax-variable">${escapedText}</span>`;
-            case 'tagOpen':
-            case 'tagClose':
-                return `<span class="fv-syntax-tag">${escapedText}</span>`;
-            case 'attribute':
-                return `<span class="fv-syntax-attribute">${escapedText}</span>`;
-            case 'attributeValue':
-                return `<span class="fv-syntax-string">${escapedText}</span>`;
-            case 'section':
-                return `<span class="fv-syntax-section">${escapedText}</span>`;
-            case 'datetime':
-                return `<span class="fv-syntax-datetime">${escapedText}</span>`;
-            case 'xmlDecl':
-            case 'processingInstruction':
-                return `<span class="fv-syntax-pi">${escapedText}</span>`;
-            case 'cdata':
-                return `<span class="fv-syntax-cdata">${escapedText}</span>`;
-            default:
-                return escapedText;
-        }
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-}
 
 // Initialize viewer when page loads
 document.addEventListener('DOMContentLoaded', () => {
@@ -1593,5 +1548,4 @@ document.addEventListener('DOMContentLoaded', () => {
 // Export for debugging
 if (typeof globalThis !== 'undefined') {
     globalThis.InlineViewer = InlineViewer;
-    globalThis.ModernSyntaxHighlighter = ModernSyntaxHighlighter;
 }
