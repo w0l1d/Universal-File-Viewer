@@ -280,8 +280,22 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
                         console.log('🦊 Background: Fetch response status:', response.status);
 
+                        // Extract all response headers (for both success and error)
+                        const responseHeaders = {};
+                        response.headers.forEach((value, name) => {
+                            responseHeaders[name.toLowerCase()] = value;
+                        });
+                        console.log('🦊 Background: Response headers:', responseHeaders);
+
                         if (!response.ok) {
-                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                            // Capture headers even for error responses
+                            return {
+                                success: false,
+                                error: `HTTP ${response.status}: ${response.statusText}`,
+                                status: response.status,
+                                statusText: response.statusText,
+                                headers: responseHeaders
+                            };
                         }
 
                         const content = await response.text();
@@ -289,7 +303,8 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
                             success: true,
                             content,
                             contentType: response.headers.get('content-type'),
-                            size: content.length
+                            size: content.length,
+                            headers: responseHeaders
                         };
 
                         console.log('🦊 Background: Fetch successful, size:', result.size);
