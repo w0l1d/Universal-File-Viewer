@@ -176,78 +176,106 @@ body {
 /* Main content area */
 .fv-content {
   padding: var(--fv-spacing-lg);
-  overflow: auto;
-  max-height: calc(100vh - 120px);
 }
 
 /* Tree view styles */
 .fv-tree {
   font-family: var(--fv-font-mono);
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
 }
 
 .fv-tree-node {
-  display: block;
-  margin: 1px 0;
+  margin: 0;
 }
 
-.fv-tree-node-content {
+.fv-tree-line {
+  display: flex;
+  align-items: flex-start;
+  min-height: 20px;
+  padding: 1px 0;
+}
+
+.fv-tree-indent {
+  width: 20px;
+  flex-shrink: 0;
+}
+
+.fv-tree-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 1px 0;
-  cursor: pointer;
-  user-select: none;
-}
-
-.fv-tree-node-content:hover {
-  background: rgba(0, 96, 223, 0.05);
-}
-
-.fv-tree-toggle {
-  width: 16px;
-  height: 16px;
-  display: inline-flex;
-  align-items: center;
   justify-content: center;
-  margin-right: var(--fv-spacing-xs);
-  cursor: pointer;
-  font-size: 10px;
   color: var(--fv-color-text-secondary);
+  font-size: 10px;
+  line-height: 1;
+  margin-right: 4px;
+  margin-top: 2px;
 }
 
-.fv-tree-toggle:hover {
-  background: rgba(0, 96, 223, 0.1);
-  border-radius: 2px;
+.fv-tree-icon:hover {
+  color: var(--fv-color-text);
 }
 
-.fv-tree-toggle.collapsed::before {
-  content: "▶";
-}
-
-.fv-tree-toggle.expanded::before {
-  content: "▼";
+.fv-tree-content {
+  flex: 1;
+  min-width: 0;
 }
 
 .fv-tree-key {
   color: var(--fv-syntax-key);
   font-weight: 500;
-  margin-right: var(--fv-spacing-xs);
+}
+
+.fv-tree-colon {
+  color: var(--fv-color-text-secondary);
+  margin: 0 4px 0 0;
+}
+
+.fv-tree-value {
+  word-wrap: break-word;
+}
+
+.fv-tree-value.string {
+  color: var(--fv-syntax-string);
+}
+
+.fv-tree-value.number {
+  color: var(--fv-syntax-number);
+}
+
+.fv-tree-value.boolean {
+  color: var(--fv-syntax-boolean);
+}
+
+.fv-tree-value.null {
+  color: var(--fv-syntax-null);
+}
+
+.fv-tree-collapsed .fv-tree-children {
+  display: none;
+}
+
+.fv-tree-summary {
+  color: var(--fv-color-text-secondary);
+  font-style: italic;
+  margin-left: 4px;
+}
+
+.fv-tree-bracket {
+  color: var(--fv-color-text-secondary);
+  margin: 0 2px;
 }
 
 .fv-tree-separator {
   color: var(--fv-syntax-operator);
-  margin: 0 var(--fv-spacing-xs);
+  margin: 0 4px;
 }
 
-.fv-tree-colon {
-  color: var(--fv-syntax-operator);
-}
-
-.fv-tree-bracket {
-  color: var(--fv-syntax-operator);
-}
-
+/* Legacy tree styles for backward compatibility */
 .fv-tree-string {
   color: var(--fv-syntax-string);
 }
@@ -271,33 +299,8 @@ body {
   font-style: italic;
 }
 
-/* Sub-classes for fv-tree-value */
-.fv-tree-value.string {
-  color: var(--fv-syntax-string);
-}
-
-.fv-tree-value.number {
-  color: var(--fv-syntax-number);
-}
-
-.fv-tree-value.boolean {
-  color: var(--fv-syntax-boolean);
-  font-weight: 500;
-}
-
-.fv-tree-value.null {
-  color: var(--fv-syntax-null);
-  font-style: italic;
-}
-
-.fv-tree-value {
-  color: var(--fv-color-text);
-}
-
 .fv-tree-children {
-  margin-left: var(--fv-spacing-lg);
-  border-left: 1px solid var(--fv-color-border);
-  padding-left: var(--fv-spacing-md);
+  /* Children elements inherit indentation from parent */
 }
 
 .fv-tree-children.collapsed {
@@ -567,47 +570,113 @@ body {
 
 .fv-code-container {
   display: flex;
-  max-height: 80vh;
+  max-height: calc(100vh - 160px);
   overflow: auto;
+  font-size: 13px;
+  line-height: 1.5;
+  position: relative;
 }
 
 .fv-code-line-numbers {
   background: var(--fv-color-background-alt);
   border-right: 1px solid var(--fv-color-border);
   padding: var(--fv-spacing-md) var(--fv-spacing-sm);
-  min-width: 60px;
   text-align: right;
   user-select: none;
+  position: sticky;
+  left: 0;
+  z-index: 2;
   flex-shrink: 0;
 }
 
 .fv-code-line-number {
   color: var(--fv-color-text-muted);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
-  padding: 0 var(--fv-spacing-xs);
+  padding: 0 var(--fv-spacing-sm);
+  min-height: 1.5em;
+  display: block;
+  transition: all 0.15s ease;
 }
 
 .fv-code-line-number:hover {
-  color: var(--fv-color-text-secondary);
-  background: rgba(0, 96, 223, 0.05);
+  color: var(--fv-color-text);
+  background: rgba(0, 96, 223, 0.12);
+  cursor: pointer;
 }
 
 .fv-code-content {
-  flex: 1;
   padding: var(--fv-spacing-md);
-  overflow: auto;
+  font-family: var(--fv-font-mono);
+  flex: 1;
+  position: relative;
+}
+
+.fv-code-pre {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
 }
 
 .fv-code-line {
   line-height: 1.5;
-  min-height: 1.5em;
   white-space: pre;
   word-wrap: break-word;
+  min-height: 1.5em;
+  display: block;
+  padding-left: var(--fv-spacing-xs);
+  transition: background 0.15s ease;
+  position: relative;
 }
 
 .fv-code-line:hover {
-  background: rgba(0, 96, 223, 0.03);
+  background: rgba(0, 96, 223, 0.08);
+}
+
+.fv-code-line:hover::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--fv-color-accent);
+}
+
+/* Synchronized hover highlighting */
+.fv-code-line.hover-highlight {
+  background: rgba(0, 96, 223, 0.08);
+}
+
+.fv-code-line.hover-highlight::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--fv-color-accent);
+}
+
+.fv-code-line-number.hover-highlight {
+  color: var(--fv-color-text);
+  background: rgba(0, 96, 223, 0.12);
+}
+
+/* Disable Prism.js line numbers (we have our own) */
+.fv-code-viewer .line-numbers-rows {
+  display: none !important;
+}
+
+.fv-code-viewer pre[class*="language-"].line-numbers {
+  padding-left: 0 !important;
+}
+
+.fv-code-viewer pre[class*="language-"].line-numbers > code {
+  padding-left: 0 !important;
 }
 
 /* Enhanced Syntax Highlighting */
