@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-09-30
+
+### Added
+- Search functionality in raw code view with highlighting
+- Metadata display (Content-Type, Last-Modified, Encoding, ETag, line count)
+- HTTP headers viewer for both success and error responses (403, 404, etc.)
+- Synchronized hover highlighting between line numbers and code lines
+- External CSS linking for better maintainability
+
+### Improved
+- Fixed double scroll issue in raw code viewer
+- Perfect line number alignment with code
+- Reduced tree view spacing for compact display
+- Enhanced hover highlights with 3px blue accent bar
+- Better error handling - tabs disabled when content fails to load
+
+### Security
+- Replaced innerHTML with DOM manipulation (createElement, textContent)
+- Only show accessible request headers (User-Agent, Accept-Language, Referer)
+- XSS protection improvements throughout codebase
+
+### Fixed
+- Search not working in raw preview
+- Headers not appearing on 403 errors
+- View tabs remaining active on errors
+- Prism.js duplicate line numbers
+- Line number misalignment
+
+### Documentation
+- Updated CLAUDE.md with accurate dual-mode architecture
+- Comprehensive README rewrite with correct features and troubleshooting
+
 ## [2.0.0] - 2025-01-25
 
 ### Download Interception Architecture
