@@ -1,109 +1,121 @@
 # Universal File Viewer - Firefox Extension
 
-A professional Firefox extension that beautifies and adds syntax highlighting to various file formats displayed in the browser. Features include tree view for structured data, professional syntax highlighting, and an extensible plugin architecture.
+A professional Firefox extension that provides a native-style viewer for structured file formats (JSON, YAML, XML, CSV, TOML). It intercepts file downloads and displays them in a beautiful, interactive interface with syntax highlighting, tree views, and search capabilities.
 
 ## ✨ Features
 
-- 🎨 **Professional Syntax Highlighting** - Powered by Highlight.js
-- 🌳 **Interactive Tree View** - Collapsible tree structure for JSON/YAML files
-- 📋 **Copy to Clipboard** - One-click copying of file content
-- 💾 **Download Files** - Download formatted or raw versions
-- 🔄 **Dual View Mode** - Toggle between tree view and syntax-highlighted code view
-- 📊 **File Information** - Display file size, type, and character count
-- ⚠️ **Error Handling** - Graceful handling of malformed files
-- 🚀 **Zero Runtime Dependencies** - Self-contained with bundled libraries
+- 🎨 **Professional Syntax Highlighting** - Powered by Prism.js with language-specific themes
+- 🌳 **Interactive Tree View** - Collapsible tree structure for JSON/YAML/XML files
+- 🔍 **Advanced Search** - Full-text search in both pretty and raw views with highlighting
+- 📋 **Copy to Clipboard** - Copy file URL or entire content with one click
+- 💾 **Download Files** - Download with proper filename and MIME type
+- 🔄 **Dual View Mode** - Toggle between pretty tree view and syntax-highlighted raw code
+- 📊 **Rich Metadata** - Display file size, content type, modified date, encoding, ETag, and line count
+- 🌐 **HTTP Headers Viewer** - View request and response headers in dedicated modal
+- ⚡ **Synchronized Hover** - Clear line number correlation with hover highlights
+- ⚠️ **Error Handling** - Graceful handling of malformed files and network errors (403, 404, etc.)
+- 🔒 **Security Features** - 50MB size limit, nesting depth validation, XSS protection
+- 🚀 **Smart Caching** - 5-minute content cache for fast repeated access
 
 ## 🏗️ Architecture
 
-### Core Services
+This extension uses a **dual-mode architecture** for maximum coverage:
 
-The extension follows a modular architecture with clear separation of concerns:
+### 1. Content Script Mode (`js/content.js`)
+- Runs on all web pages via `content_scripts` in manifest.json
+- Detects plain text file displays (single `<pre>` tag or empty body)
+- Performs client-side format detection and rendering
+- Self-contained with embedded FormatHandler, TreeView, and NativeViewer classes
+- Activates automatically when viewing raw text files in browser
+
+### 2. Download Interception Mode (`js/background.js` + `viewer.html` + `js/viewer.js`)
+- **Background Script**: Intercepts file downloads using webRequest API
+  - Monitors `onBeforeRequest` and `onHeadersReceived` for supported file types
+  - Pre-fetches content and caches it in browser.storage.local (5-minute expiration)
+  - Redirects to custom viewer page with file metadata in URL hash
+- **Viewer Page**: Dedicated viewer interface (viewer.html)
+  - InlineViewer class handles rendering (js/viewer.js)
+  - Retrieves cached content from background script
+  - Provides Pretty/Raw toggle, search, headers modal, download, and copy URL
+  - Uses Prism.js for syntax highlighting in raw view
+
+### Key Architectural Points
+- **No core services structure**: Format detection, parsing, and highlighting are inline in each viewer
+- **Format detection is inline**: Both content.js and viewer.js have their own FormatHandler implementations
+- **Two independent viewers**: Content script and viewer page are separate implementations sharing similar functionality
+- **Caching mechanism**: Background script pre-fetches and caches content in browser.storage.local
+- **Message passing**: Viewer communicates with background script using browser.runtime.sendMessage
+- **Security**: Input validation, 50MB size limit, 1000 nesting depth limit, XSS protection via DOM methods
+
+## 📁 Project Structure
 
 ```
-js/
-├── core/
-│   ├── detector.js     # File format detection service
-│   ├── formatter.js    # Parsing and formatting service
-│   ├── highlighter.js  # Syntax highlighting service
-│   └── viewer.js       # UI rendering and interactions
-├── formats/
-│   ├── json.js        # JSON format handler
-│   ├── yaml.js        # YAML format handler
-│   ├── xml.js         # XML format handler
-│   ├── csv.js         # CSV format handler
-│   └── toml.js        # TOML format handler
-├── background.js      # Background service worker
-├── main.js           # Content script entry point
-└── viewer-page.js    # Viewer page logic
+.
+├── js/
+│   ├── background.js      # Background script (download interception, caching)
+│   ├── content.js         # Content script (inline file detection and rendering)
+│   └── viewer.js          # Viewer page logic (InlineViewer class)
+├── css/
+│   └── viewer.css         # All viewer styles (tree view, code viewer, modals)
+├── lib/                   # Runtime dependencies (downloaded by setup.js)
+│   ├── js-yaml.min.js     # YAML parser (4.1.0)
+│   └── prism/             # Prism.js syntax highlighting (11.11.1)
+├── icons/                 # Extension icons
+├── viewer.html            # Dedicated viewer page template
+├── manifest.json          # Extension configuration (Manifest v2)
+├── setup.js               # Dependency download script
+├── CLAUDE.md              # AI assistant instructions
+└── README.md              # This file
 ```
-
-### Key Design Principles
-
-1. **Plugin Architecture**: Each file format is a self-contained module that registers itself with core services
-2. **Separation of Concerns**: Detection, parsing, formatting, and highlighting are independent services
-3. **Extensibility**: Adding new formats requires only creating a new format handler
-4. **Professional Libraries**: Uses industry-standard libraries (Highlight.js, JSON Viewer Web Component)
 
 ## Adding New File Formats
 
-To add support for a new file format, create a new file in `js/formats/` with three registrations:
+To add support for a new file format, you need to update the FormatHandler in both viewers:
 
-### 1. Register Detector
-
+### 1. Update Background Script (`js/background.js`)
+Add MIME type and extension detection:
 ```javascript
-FileDetector.register('format-name', {
-  mimeTypes: ['application/format'],     // MIME types to match
-  extensions: ['ext', 'ext2'],          // File extensions
-  contentMatcher: (content) => {        // Content pattern matching
-    return content.startsWith('signature');
-  },
-  priority: 10                          // Higher = checked first
-});
+const SUPPORTED_FORMATS = {
+  'application/json': 'json',
+  'application/x-yaml': 'yaml',
+  'application/your-format': 'your-format',  // Add your format
+  // ...
+};
 ```
 
-### 2. Register Formatter
-
+### 2. Update Content Script (`js/content.js`)
+Add format detection in FormatHandler class:
 ```javascript
-Formatter.register('format-name', {
-  parse: (text) => {
-    // Parse text into data structure
-    return parsedData;
-  },
-  
-  format: (data, options) => {
-    // Format data back to text
-    return formattedText;
-  },
-  
-  validate: (data) => {
-    // Optional validation
-    return { valid: true };
+detectFormat(text) {
+  // Add your format detection logic
+  if (text.startsWith('YOUR_SIGNATURE')) {
+    return 'your-format';
   }
-});
+  // ...
+}
 ```
 
-### 3. Register Highlighter
-
-Choose between pattern-based (simple) or token-based (complex) highlighting:
-
+### 3. Update Viewer (`js/viewer.js`)
+Add parser and renderer:
 ```javascript
-// Pattern-based (regex)
-Highlighter.register('format-name', {
-  patterns: {
-    [Highlighter.TokenType.STRING]: /regex/g,
-    [Highlighter.TokenType.NUMBER]: /regex/g,
+parseContent(content, format) {
+  switch (format.toLowerCase()) {
+    case 'your-format':
+      return this.parseYourFormat(content);
     // ...
   }
-});
+}
 
-// Token-based (precise)
-Highlighter.register('format-name', {
-  tokenize: (text) => {
-    const tokens = [];
-    // Parse and return token array
-    return tokens;
-  }
-});
+parseYourFormat(content) {
+  // Parse your format into a tree structure
+  return parsedData;
+}
+```
+
+### 4. Add Prism.js Language Support (Optional)
+For syntax highlighting in raw view, add Prism.js language file in `viewer.html`:
+```html
+<script src="lib/prism/prism-your-format.min.js"></script>
 ```
 
 ## 🚀 Quick Start
@@ -175,78 +187,125 @@ make test
 
 ## 🎯 Usage
 
-### Tree View Features
-- **Interactive Navigation** - Click to expand/collapse nodes
-- **Expand All** - Button to expand entire tree structure
-- **Collapse All** - Button to collapse back to root level
-- **Toggle Views** - Switch between tree view and syntax-highlighted code view
+### Keyboard Shortcuts
+- **Ctrl/Cmd + F** - Focus search box
+- **Ctrl/Cmd + R** - Toggle between Pretty and Raw view
+- **Ctrl/Cmd + S** - Download file
+- **Ctrl/Cmd + U** - Copy original URL to clipboard
+- **Ctrl/Cmd + H** - Show headers modal
+- **Escape** - Close headers modal
+
+### Tree View Features (Pretty Mode)
+- **Interactive Navigation** - Click ▶/▼ icons to expand/collapse nodes
+- **Nested Structures** - Automatic indentation and collapsible nodes for objects/arrays
+- **Item Count** - Shows number of items in collapsed nodes
+- **Search Highlighting** - Search term highlighted in yellow
+- **Type Colors** - Different colors for strings, numbers, booleans, null values
+
+### Raw Code View Features
+- **Line Numbers** - Left-aligned line numbers with synchronized hover
+- **Syntax Highlighting** - Language-specific color schemes via Prism.js
+- **Search Support** - Full-text search with yellow highlights
+- **Copy Button** - Quick copy of entire code content
+- **Hover Feedback** - Blue accent bar and background highlight on hover
 
 ### File Operations
-- **Copy Content** - Copy original or formatted content to clipboard
-- **Download File** - Save file with proper filename and content type
-- **View Raw** - Open original file content in new tab
-- **Direct Link** - Access original file URL
+- **Headers Button** - View HTTP request and response headers in modal
+- **Copy URL** - Copy original file URL to clipboard with visual feedback
+- **Download** - Save file with original filename and proper MIME type
+- **Search** - Real-time search in both pretty and raw views
 
-## Token Types
+### Metadata Display
+The viewer shows useful file metadata:
+- **Content-Type** - MIME type of the file
+- **Modified** - Last modified date (if available)
+- **Encoding** - Content encoding (gzip, br, etc.)
+- **ETag** - Cache validation token (shortened)
+- **Lines** - Total line count
 
-The highlighter supports these token types for consistent theming:
+## 🔒 Security Features
 
-- `STRING` - String literals
-- `NUMBER` - Numeric values
-- `BOOLEAN` - Boolean values
-- `NULL` - Null/nil values
-- `KEY` - Object keys/properties
-- `KEYWORD` - Language keywords
-- `COMMENT` - Comments
-- `OPERATOR` - Operators
-- `PUNCTUATION` - Brackets, commas, etc.
-- `VARIABLE` - Variables/references
-- `FUNCTION` - Function names
-- `CLASS` - Class names
-- `TAG` - XML/HTML tags
-- `ATTRIBUTE` - Attributes
-- `ERROR` - Error tokens
+1. **Input Validation**
+   - File size limit: 50MB maximum
+   - Nesting depth limit: 1000 levels for JSON/YAML
+   - XML entity reference blocking to prevent XML bombs
+
+2. **XSS Protection**
+   - All user content escaped via `textContent` and `escapeHtml()`
+   - Minimal use of `innerHTML`, only for trusted Prism.js output
+   - DOM manipulation preferred over string concatenation
+
+3. **Content Security**
+   - Blob URLs properly cleaned up after use
+   - No eval() or Function() constructor usage
+   - Sandboxed iframe not required due to safe practices
+
+4. **Network Security**
+   - CORS mode enabled for fetch requests
+   - Response headers captured even for error responses
+   - No credential exposure in request headers display
 
 ## API Reference
 
-### FileDetector
-- `register(format, detector)` - Register format detector
-- `detect()` - Detect current page format
-- `getDetector(format)` - Get detector config
+### InlineViewer Class (js/viewer.js)
 
-### Formatter
-- `register(format, handler)` - Register format handler
-- `parse(text, format)` - Parse text
-- `format(data, format, options)` - Format data
-- `hasFormatter(format)` - Check if formatter exists
+Main viewer class that handles rendering and interactions:
 
-### Highlighter
-- `register(format, highlighter)` - Register highlighter
-- `highlight(text, format)` - Apply highlighting
-- `getTokenTypes()` - Get available token types
+**Methods:**
+- `loadFileFromHash()` - Parse URL hash and load file data
+- `fetchAndDisplayFile()` - Fetch content via background script
+- `displayContent()` - Render content based on current view mode
+- `displayPrettyContent()` - Render tree view for structured data
+- `displayRawContent()` - Render syntax-highlighted code view
+- `parseContent(content, format)` - Parse content into data structure
+- `switchView(view)` - Toggle between 'pretty' and 'raw' views
+- `highlightSearchResults()` - Apply search highlighting
+- `showHeadersModal()` - Display HTTP headers modal
+- `downloadFile()` - Trigger file download
+- `copyOriginalUrl()` - Copy URL to clipboard
 
-### Viewer
-- `render(config)` - Render the UI
+**Security Methods:**
+- `validateParseInput(content, format)` - Validate input before parsing
+- `escapeHtml(text)` - Escape HTML entities for safe display
+
+### Background Script (js/background.js)
+
+**Message Handlers:**
+- `fetchFile` - Fetch file from URL and return with headers
+- `getCachedContent` - Retrieve cached content from storage
+- `trackUsage` - Log format usage statistics
+
+**Interceptors:**
+- `onBeforeRequest` - Intercept file downloads and pre-fetch content
+- `onHeadersReceived` - Redirect to viewer page for supported formats
 
 ## 🔧 Dependencies
 
 ### Runtime Dependencies (Downloaded by setup.js)
-- **js-yaml** (4.1.0) - YAML parsing and formatting
-- **highlight.js** (11.11.1) - Professional syntax highlighting
-- **JSON Viewer Web Component** (2.1.0) - Interactive tree view for JSON/YAML
+- **js-yaml** (4.1.0) - YAML parsing library
+- **Prism.js** (11.11.1) - Lightweight syntax highlighting
+  - prism-core.min.js - Core highlighting engine
+  - prism-json.min.js - JSON language support
+  - prism-yaml.min.js - YAML language support
+  - prism-markup.min.js - XML/HTML language support
+  - prism-csv.min.js - CSV language support
+  - prism-toml.min.js - TOML language support
 
 ### Development Dependencies
-- **web-ext** - Firefox extension development and testing
+- **web-ext** - Firefox extension development and testing tool
 - **jest** - JavaScript testing framework
+- **jest-environment-jsdom** - DOM environment for Jest
 - **eslint** - Code linting and style checking
 
 ## 📈 Performance Considerations
 
-- **Lazy Loading**: Format handlers are loaded only when needed
-- **Efficient Rendering**: Tree view uses virtual scrolling for large datasets
-- **Memory Management**: Blob URLs are properly cleaned up
-- **Optimized Highlighting**: Highlight.js provides efficient syntax highlighting
-- **Caching**: Parsed results and highlighted content are cached during session
+- **Smart Caching**: 5-minute cache in browser.storage.local for repeat views
+- **Pre-fetching**: Background script fetches content during interception to avoid CORS
+- **Efficient Rendering**: Tree view collapses nested structures by default
+- **Memory Management**: Blob URLs cleaned up after download operations
+- **Optimized Highlighting**: Prism.js manual mode for on-demand syntax highlighting
+- **Size Limits**: 50MB file size limit prevents browser freezing
+- **Event Delegation**: Single click handler for tree expansion/collapse
 
 ## 🧪 Testing
 
@@ -278,14 +337,53 @@ See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
 
 ### Common Issues
 
-1. **Extension not loading**: Ensure all dependencies are downloaded with `node setup.js`
-2. **Tree view not working**: Check browser console for JavaScript errors
-3. **Files downloading instead of viewing**: The extension intercepts requests and redirects to viewer
-4. **YAML parsing errors**: Ensure file is valid YAML format
+1. **Extension not loading**:
+   - Ensure all dependencies are downloaded with `node setup.js`
+   - Check that `lib/` directory exists and contains js-yaml and prism files
+   - Verify manifest.json has correct permissions
+
+2. **Files downloading instead of viewing**:
+   - The extension intercepts requests and redirects to viewer
+   - Check browser console for interception logs (🦊 emoji)
+   - Ensure file has supported MIME type or extension
+
+3. **YAML parsing errors**:
+   - Verify file is valid YAML format
+   - Check for tab characters (YAML requires spaces)
+   - Look for duplicate keys or invalid indentation
+
+4. **Tree view not expanding**:
+   - Click the ▶/▼ icon, not the text
+   - Check browser console for JavaScript errors
+   - Verify data structure is valid JSON/YAML
+
+5. **Search not working**:
+   - Ensure search term is at least 2 characters
+   - Search is case-insensitive
+   - Works in both pretty and raw views
+
+6. **Line numbers misaligned**:
+   - This usually indicates CSS loading issue
+   - Check that viewer.css is properly linked
+   - Clear browser cache and reload
 
 ### Debug Mode
 
-Enable debug logging by opening browser console when viewing files. The extension provides detailed logging for troubleshooting.
+Enable detailed logging by opening browser console (F12) when viewing files. The extension provides comprehensive logging with 🦊 emoji prefix:
+
+```
+🦊 InlineViewer constructor called
+🦊 Loading file: {originalUrl, format, cacheKey}
+🦊 Fetch response: {success, content, headers}
+🦊 Response headers stored: {...}
+```
+
+### Error Messages
+
+- **"Failed to load file: HTTP 403"** - Server denied access, but headers are still viewable
+- **"File too large: X MB exceeds limit of 50MB"** - File exceeds safety limit
+- **"XML contains entity references"** - XML bomb protection triggered
+- **"YAML parser not available"** - js-yaml.min.js not loaded, run setup.js
 
 ## 📄 License
 
