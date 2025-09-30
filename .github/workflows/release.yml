@@ -50,8 +50,8 @@ jobs:
           addon-guid: '{YOUR-EXTENSION-GUID-HERE}'
           xpi-path: web-ext-artifacts/*.zip
           self-hosted: false
-          amo-jwt-issuer: ${{ secrets.AMO_JWT_ISSUER }}
-          amo-jwt-secret: ${{ secrets.AMO_JWT_SECRET }}
+          jwt-issuer: ${{ secrets.FIREFOX_AMO_JWT_ISSUER }}
+          jwt-secret: ${{ secrets.FIREFOX_AMO_JWT_SECRET }}
 
       # Alternative: Use web-ext directly
       # - name: Publish to AMO with web-ext
