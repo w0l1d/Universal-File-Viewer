@@ -3,117 +3,267 @@
 <head>
     <meta charset="utf-8">
     <style>
-        body {
-            width: 300px;
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            width: 350px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 14px;
+            background: #ffffff;
+            color: #333333;
+        }
+
+        .header {
+            background: #f8f9fa;
             padding: 16px;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            font-size: 13px;
-            background: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
         }
 
-        h2 {
-            margin: 0 0 16px 0;
-            font-size: 16px;
-            color: #333;
+        .header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin: 0;
         }
 
-        .setting {
+        .content {
+            padding: 16px;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #34495e;
             margin-bottom: 12px;
+            padding-bottom: 4px;
+            border-bottom: 2px solid #3498db;
+        }
+
+        .setting-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
         }
 
-        label {
-            color: #555;
+        .setting-row:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-size: 13px;
+            color: #555555;
             flex: 1;
         }
 
-        input[type="checkbox"] {
-            cursor: pointer;
+        .setting-control {
+            margin-left: 12px;
         }
 
         select {
-            padding: 4px 8px;
+            padding: 6px 8px;
             border: 1px solid #ddd;
-            border-radius: 3px;
+            border-radius: 4px;
             background: white;
+            font-size: 12px;
+            min-width: 80px;
+        }
+
+        input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
             cursor: pointer;
         }
 
-        .stats {
-            margin-top: 16px;
-            padding-top: 16px;
-            border-top: 1px solid #ddd;
-            color: #777;
-            font-size: 11px;
+        input[type="number"] {
+            width: 60px;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .stats-section {
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 16px;
         }
 
         .stats-item {
+            font-size: 12px;
+            color: #666;
             margin-bottom: 4px;
         }
 
-        button {
-            width: 100%;
-            padding: 8px;
-            margin-top: 12px;
-            background: #007acc;
-            color: white;
-            border: none;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 12px;
-            font-weight: 500;
+        .stats-item:last-child {
+            margin-bottom: 0;
         }
 
-        button:hover {
-            background: #0066b3;
+        .stats-item strong {
+            color: #333;
+        }
+
+        .action-button {
+            width: 100%;
+            padding: 10px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .action-button:hover {
+            background: #2980b9;
+        }
+
+        .action-button.danger {
+            background: #e74c3c;
+        }
+
+        .action-button.danger:hover {
+            background: #c0392b;
+        }
+
+        .footer {
+            padding: 12px 16px;
+            border-top: 1px solid #e0e0e0;
+            background: #f8f9fa;
+            text-align: center;
+            font-size: 11px;
+            color: #7f8c8d;
+        }
+
+        .status-message {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            padding: 8px 12px;
+            background: #27ae60;
+            color: white;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 1000;
+        }
+
+        .status-message.show {
+            opacity: 1;
+        }
+
+        .status-message.error {
+            background: #e74c3c;
         }
     </style>
 </head>
 <body>
-<h2>File Viewer Settings</h2>
+    <div class="header">
+        <h1>File Viewer Settings</h1>
+    </div>
 
-<div class="setting">
-    <label for="theme">Theme</label>
-    <select id="theme">
-        <option value="auto">Auto</option>
-        <option value="dark">Dark</option>
-        <option value="light">Light</option>
-    </select>
-</div>
+    <div class="content">
+        <!-- Appearance Settings -->
+        <div class="section">
+            <div class="section-title">Appearance</div>
 
-<div class="setting">
-    <label for="lineNumbers">Show line numbers</label>
-    <input type="checkbox" id="lineNumbers">
-</div>
+            <div class="setting-row">
+                <div class="setting-label">Theme</div>
+                <div class="setting-control">
+                    <select id="theme">
+                        <option value="auto">Auto</option>
+                        <option value="light">Light</option>
+                        <option value="dark">Dark</option>
+                    </select>
+                </div>
+            </div>
 
-<div class="setting">
-    <label for="sortKeys">Sort object keys</label>
-    <input type="checkbox" id="sortKeys">
-</div>
+            <div class="setting-row">
+                <div class="setting-label">Show line numbers</div>
+                <div class="setting-control">
+                    <input type="checkbox" id="showLineNumbers">
+                </div>
+            </div>
+        </div>
 
-<div class="setting">
-    <label for="autoFormat">Auto-format files</label>
-    <input type="checkbox" id="autoFormat">
-</div>
+        <!-- Formatting Settings -->
+        <div class="section">
+            <div class="section-title">Formatting</div>
 
-<div class="setting">
-    <label for="indentSize">Indent size</label>
-    <select id="indentSize">
-        <option value="2">2 spaces</option>
-        <option value="4">4 spaces</option>
-        <option value="\t">Tab</option>
-    </select>
-</div>
+            <div class="setting-row">
+                <div class="setting-label">Auto-format files</div>
+                <div class="setting-control">
+                    <input type="checkbox" id="autoFormat">
+                </div>
+            </div>
 
-<div class="stats" id="stats">
-    <div class="stats-item">Loading statistics...</div>
-</div>
+            <div class="setting-row">
+                <div class="setting-label">Sort object keys</div>
+                <div class="setting-control">
+                    <input type="checkbox" id="sortKeys">
+                </div>
+            </div>
 
-<button id="clearStats">Clear Statistics</button>
+            <div class="setting-row">
+                <div class="setting-label">Indent size</div>
+                <div class="setting-control">
+                    <select id="indentSize">
+                        <option value="2">2 spaces</option>
+                        <option value="4">4 spaces</option>
+                        <option value="8">8 spaces</option>
+                    </select>
+                </div>
+            </div>
+        </div>
 
-<script src="popup.js"></script>
+        <!-- Performance Settings -->
+        <div class="section">
+            <div class="section-title">Performance</div>
+
+            <div class="setting-row">
+                <div class="setting-label">Max file size (MB)</div>
+                <div class="setting-control">
+                    <input type="number" id="maxFileSize" min="1" max="100" value="10">
+                </div>
+            </div>
+
+            <div class="setting-row">
+                <div class="setting-label">Enable caching</div>
+                <div class="setting-control">
+                    <input type="checkbox" id="enableCache">
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics -->
+        <div class="section">
+            <div class="section-title">Usage Statistics</div>
+            <div class="stats-section" id="statsContainer">
+                <div class="stats-item">Loading statistics...</div>
+            </div>
+            <button class="action-button danger" id="clearStats">Clear Statistics</button>
+        </div>
+    </div>
+
+    <div class="footer">
+        Universal File Viewer v1.0.0
+    </div>
+
+    <div class="status-message" id="statusMessage"></div>
+
+    <script src="popup.js"></script>
 </body>
 </html>

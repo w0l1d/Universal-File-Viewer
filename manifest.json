@@ -1,27 +1,35 @@
 {
   "manifest_version": 2,
-  "name": "Universal File Viewer",
-  "version": "1.0.0",
-  "description": "Beautify and highlight various file formats in browser",
+  "name": "Native Multi-Format Viewer",
+  "version": "2.0.0",
+  "description": "🦊 Native Firefox-style viewer for JSON, YAML, XML, CSV and more - feels built into Firefox",
   "author": "Walid Ahdouf",
   "homepage_url": "https://github.com/w0l1d/universal-file-viewer",
 
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "{9fcf0451-bb25-4b50-b7ae-e788f10cc82b}"
+    }
+  },
+
   "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
     "48": "icons/icon-48.png",
-    "96": "icons/icon-96.png"
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
   },
 
   "permissions": [
     "<all_urls>",
     "storage",
-    "clipboardWrite",
     "webRequest",
     "webRequestBlocking"
   ],
 
   "background": {
     "scripts": ["js/background.js"],
-    "persistent": true
+    "persistent": false
   },
 
   "content_scripts": [
@@ -29,25 +37,15 @@
       "matches": ["<all_urls>"],
       "js": [
         "lib/js-yaml.min.js",
-        "js/core/detector.js",
-        "js/core/formatter.js",
-        "js/core/highlighter.js",
-        "js/core/viewer.js",
-        "js/formats/json.js",
-        "js/formats/yaml.js",
-        "js/formats/xml.js",
-        "js/formats/csv.js",
-        "js/formats/toml.js",
-        "js/fetcher.js",
-        "js/main.js"
+        "js/content.js"
       ],
-      "css": ["css/viewer.css"],
-      "run_at": "document_start"
+      "run_at": "document_end",
+      "all_frames": false
     }
   ],
 
   "browser_action": {
-    "default_title": "File Viewer Settings",
+    "default_title": "Native Multi-Format Viewer Settings",
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon-16.png",
@@ -55,13 +53,13 @@
     }
   },
 
-  "content_security_policy": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'",
 
   "web_accessible_resources": [
+    "viewer.html",
+    "css/viewer.css",
     "lib/*",
-    "css/*",
-    "js/*",
+    "lib/prism/*",
     "icons/*",
-    "viewer.html"
+    "js/*"
   ]
 }
