@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: '20'
 
@@ -47,7 +47,7 @@ jobs:
       - name: Publish to Firefox Add-ons (AMO)
         uses: wdzeng/firefox-addon@v1
         with:
-          addon-guid: '{YOUR-EXTENSION-GUID-HERE}'
+          addon-guid: '{9fcf0451-bb25-4b50-b7ae-e788f10cc82b}'
           xpi-path: web-ext-artifacts/*.zip
           self-hosted: false
           jwt-issuer: ${{ secrets.FIREFOX_AMO_JWT_ISSUER }}
