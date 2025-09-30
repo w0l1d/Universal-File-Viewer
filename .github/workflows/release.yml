@@ -1,0 +1,62 @@
+name: Release Firefox Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          npm install
+          npm run setup
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            web-ext-artifacts/*.zip
+          body_path: CHANGELOG.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to Firefox Add-ons (AMO)
+        uses: wdzeng/firefox-addon@v1
+        with:
+          addon-guid: '{YOUR-EXTENSION-GUID-HERE}'
+          xpi-path: web-ext-artifacts/*.zip
+          self-hosted: false
+          amo-jwt-issuer: ${{ secrets.AMO_JWT_ISSUER }}
+          amo-jwt-secret: ${{ secrets.AMO_JWT_SECRET }}
+
+      # Alternative: Use web-ext directly
+      # - name: Publish to AMO with web-ext
+      #   run: |
+      #     npx web-ext sign \
+      #       --api-key=${{ secrets.AMO_JWT_ISSUER }} \
+      #       --api-secret=${{ secrets.AMO_JWT_SECRET }} \
+      #       --channel=listed
