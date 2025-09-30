@@ -58,6 +58,7 @@
     "viewer.html",
     "css/viewer.css",
     "lib/*",
+    "lib/prism/*",
     "icons/*",
     "js/*"
   ]
