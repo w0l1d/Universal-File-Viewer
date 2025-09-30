@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>File Viewer</title>
+    <!-- External CSS from viewer.css -->
+    <link rel="stylesheet" href="css/viewer.css">
     <style>
         /* Reset and base styles */
         * {
@@ -108,6 +110,23 @@
         .fv-filesize {
             color: var(--fv-color-muted);
             font-size: 13px;
+        }
+
+g        .fv-metadata {
+            color: var(--fv-color-muted);
+            font-size: 12px;
+            display: flex;
+            gap: 8px;
+        }
+
+        .fv-metadata-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .fv-metadata-label {
+            font-weight: 500;
         }
 
         /* Controls */
@@ -617,6 +636,7 @@
             <span class="fv-format-badge" id="formatBadge">FILE</span>
             <span class="fv-filename" id="filename">Loading...</span>
             <span class="fv-filesize" id="filesize"></span>
+            <span class="fv-metadata" id="metadata"></span>
         </div>
 
         <div class="fv-controls">
@@ -683,7 +703,19 @@
     </div>
 
     <!-- Scripts -->
+    <!-- Prism.js Syntax Highlighting -->
+    <link rel="stylesheet" href="lib/prism/prism.min.css">
+    <script src="lib/prism/prism-core.min.js" data-manual></script>
+    <script src="lib/prism/prism-markup.min.js"></script>
+    <script src="lib/prism/prism-json.min.js"></script>
+    <script src="lib/prism/prism-yaml.min.js"></script>
+    <script src="lib/prism/prism-csv.min.js"></script>
+    <script src="lib/prism/prism-toml.min.js"></script>
+
+    <!-- YAML Parser -->
     <script src="lib/js-yaml.min.js"></script>
+
+    <!-- Main Viewer Script -->
     <script src="js/viewer.js"></script>
 </body>
 </html>
