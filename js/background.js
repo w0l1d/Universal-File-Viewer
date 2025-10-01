@@ -40,29 +40,37 @@ function shouldInterceptUrl(url, responseHeaders = {}) {
     try {
         const urlObj = new URL(url);
 
-        // Check file extension
-        const pathname = urlObj.pathname.toLowerCase();
-        const extension = pathname.split('.').pop();
-        if (SUPPORTED_TYPES.extensions.has(extension)) {
-            return { format: extension, reason: 'extension' };
-        }
-
-        // Check Content-Type header
+        // First priority: Check Content-Type header (most reliable)
         const contentType = responseHeaders['content-type'] || '';
-        for (const mimeType of SUPPORTED_TYPES.mimeTypes) {
-            if (contentType.includes(mimeType)) {
-                const format = mimeType.includes('json') ? 'json' :
-                             mimeType.includes('yaml') ? 'yaml' :
-                             mimeType.includes('xml') ? 'xml' :
-                             mimeType.includes('csv') ? 'csv' :
-                             mimeType.includes('toml') ? 'toml' : null;
-                if (format) {
-                    return { format, reason: 'mime-type' };
+        if (contentType) {
+            for (const mimeType of SUPPORTED_TYPES.mimeTypes) {
+                if (contentType.includes(mimeType)) {
+                    const format = mimeType.includes('json') ? 'json' :
+                                 mimeType.includes('yaml') ? 'yaml' :
+                                 mimeType.includes('xml') ? 'xml' :
+                                 mimeType.includes('csv') ? 'csv' :
+                                 mimeType.includes('toml') ? 'toml' : null;
+                    if (format) {
+                        return { format, reason: 'mime-type' };
+                    }
                 }
             }
         }
 
-        // Check download patterns
+        // Second priority: Check file extension
+        const pathname = urlObj.pathname.toLowerCase();
+        // Extract extension properly - only get the part after the last dot
+        const lastDotIndex = pathname.lastIndexOf('.');
+        if (lastDotIndex > -1) {
+            const extension = pathname.substring(lastDotIndex + 1);
+            // Remove query parameters if present
+            const cleanExtension = extension.split('?')[0].split('#')[0];
+            if (SUPPORTED_TYPES.extensions.has(cleanExtension)) {
+                return { format: cleanExtension, reason: 'extension' };
+            }
+        }
+
+        // Third priority: Check download patterns
         for (const pattern of DOWNLOAD_PATTERNS) {
             if (pattern.test(url)) {
                 const match = url.match(/\.(json|yaml|yml|xml|csv|toml)/i);
@@ -163,7 +171,7 @@ browser.webRequest.onBeforeRequest.addListener(
     ['blocking']
 );
 
-// Enhanced response header checking
+// Enhanced response header checking - PRIMARY INTERCEPTION METHOD
 browser.webRequest.onHeadersReceived.addListener(
     async (details) => {
         try {
@@ -180,22 +188,68 @@ browser.webRequest.onHeadersReceived.addListener(
 
             const detection = shouldInterceptUrl(details.url, headers);
             if (detection && details.type === 'main_frame') {
-                // Check if Content-Disposition suggests download
-                const contentDisposition = headers['content-disposition'] || '';
-                if (contentDisposition.includes('attachment')) {
-                    console.log('🦊 Intercepting attachment download:', details.url, detection);
+                console.log('🦊 Intercepting based on headers:', details.url, detection);
 
-                    const viewerUrl = browser.runtime.getURL('viewer.html') +
-                                    '#' + encodeURIComponent(JSON.stringify({
-                                        originalUrl: details.url,
-                                        format: detection.format,
-                                        reason: 'attachment-' + detection.reason,
-                                        timestamp: Date.now(),
-                                        headers: headers
-                                    }));
+                // Try to fetch the content immediately
+                try {
+                    console.log('🦊 Pre-fetching content during header interception...');
+                    const response = await fetch(details.url, {
+                        headers: { 'Accept': '*/*' },
+                        mode: 'cors'
+                    });
 
-                    return { redirectUrl: viewerUrl };
+                    if (response.ok) {
+                        const content = await response.text();
+                        const contentType = response.headers.get('content-type');
+
+                        // Extract all response headers
+                        const responseHeaders = {};
+                        response.headers.forEach((value, name) => {
+                            responseHeaders[name.toLowerCase()] = value;
+                        });
+
+                        console.log('🦊 Pre-fetch successful, size:', content.length);
+
+                        // Store the fetched content temporarily
+                        const cacheKey = `content_${Date.now()}`;
+                        await browser.storage.local.set({
+                            [cacheKey]: {
+                                content,
+                                contentType,
+                                size: content.length,
+                                timestamp: Date.now(),
+                                headers: responseHeaders
+                            }
+                        });
+
+                        // Create viewer URL with cached content reference
+                        const viewerUrl = browser.runtime.getURL('viewer.html') +
+                                        '#' + encodeURIComponent(JSON.stringify({
+                                            originalUrl: details.url,
+                                            format: detection.format,
+                                            reason: detection.reason,
+                                            timestamp: Date.now(),
+                                            cacheKey: cacheKey
+                                        }));
+
+                        console.log('🦊 Generated viewer URL with cached content:', viewerUrl);
+                        return { redirectUrl: viewerUrl };
+                    }
+                } catch (fetchError) {
+                    console.error('🦊 Pre-fetch failed:', fetchError);
                 }
+
+                // Fallback if fetch fails
+                const viewerUrl = browser.runtime.getURL('viewer.html') +
+                                '#' + encodeURIComponent(JSON.stringify({
+                                    originalUrl: details.url,
+                                    format: detection.format,
+                                    reason: detection.reason,
+                                    timestamp: Date.now(),
+                                    headers: headers
+                                }));
+
+                return { redirectUrl: viewerUrl };
             }
         } catch (error) {
             console.error('🦊 Header interception failed:', error);
