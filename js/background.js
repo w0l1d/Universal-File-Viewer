@@ -84,7 +84,10 @@ browser.webRequest.onBeforeRequest.addListener(
     async (details) => {
         try {
             const settings = await browser.storage.local.get('settings');
-            if (!settings.settings?.enabled) return;
+            // Default to enabled if settings don't exist yet
+            const isEnabled = settings.settings?.enabled !== false;
+
+            if (!isEnabled) return;
 
             const detection = shouldInterceptUrl(details.url);
             if (detection && details.type === 'main_frame') {
@@ -165,7 +168,9 @@ browser.webRequest.onHeadersReceived.addListener(
     async (details) => {
         try {
             const settings = await browser.storage.local.get('settings');
-            if (!settings.settings?.enabled) return;
+            // Default to enabled if settings don't exist yet
+            const isEnabled = settings.settings?.enabled !== false;
+            if (!isEnabled) return;
 
             // Convert headers array to object
             const headers = {};

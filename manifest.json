@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "name": "Native Multi-Format Viewer",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "🦊 Native Firefox-style viewer for JSON, YAML, XML, CSV and more - feels built into Firefox",
   "author": "Walid Ahdouf",
   "homepage_url": "https://github.com/w0l1d/universal-file-viewer",
@@ -29,7 +29,7 @@
 
   "background": {
     "scripts": ["js/background.js"],
-    "persistent": false
+    "persistent": true
   },
 
   "content_scripts": [
