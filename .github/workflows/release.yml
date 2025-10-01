@@ -8,6 +8,8 @@ on:
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -37,18 +39,19 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            web-ext-artifacts/*.zip
+            dist/*.zip
           body_path: CHANGELOG.md
           draft: false
           prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+        permissions:
+          contents: write
 
       - name: Publish to Firefox Add-ons (AMO)
         uses: wdzeng/firefox-addon@v1
         with:
           addon-guid: '{9fcf0451-bb25-4b50-b7ae-e788f10cc82b}'
-          xpi-path: web-ext-artifacts/*.zip
+          xpi-path: dist/*.zip
           self-hosted: false
           jwt-issuer: ${{ secrets.FIREFOX_AMO_JWT_ISSUER }}
           jwt-secret: ${{ secrets.FIREFOX_AMO_JWT_SECRET }}
