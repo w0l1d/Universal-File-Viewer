@@ -175,10 +175,17 @@ browser.webRequest.onBeforeRequest.addListener(
 browser.webRequest.onHeadersReceived.addListener(
     async (details) => {
         try {
+            console.log('🦊 onHeadersReceived triggered for:', details.url, 'type:', details.type);
+
             const settings = await browser.storage.local.get('settings');
             // Default to enabled if settings don't exist yet
             const isEnabled = settings.settings?.enabled !== false;
-            if (!isEnabled) return;
+            console.log('🦊 Extension enabled:', isEnabled, 'settings:', settings.settings);
+
+            if (!isEnabled) {
+                console.log('🦊 Extension disabled, skipping interception');
+                return;
+            }
 
             // Convert headers array to object
             const headers = {};
@@ -186,9 +193,13 @@ browser.webRequest.onHeadersReceived.addListener(
                 headers[header.name.toLowerCase()] = header.value;
             });
 
+            console.log('🦊 Content-Type header:', headers['content-type']);
+
             const detection = shouldInterceptUrl(details.url, headers);
+            console.log('🦊 Detection result:', detection);
+
             if (detection && details.type === 'main_frame') {
-                console.log('🦊 Intercepting based on headers:', details.url, detection);
+                console.log('🦊 ✅ Intercepting based on headers:', details.url, detection);
 
                 // Try to fetch the content immediately
                 try {
