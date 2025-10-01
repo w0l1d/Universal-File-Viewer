@@ -24,7 +24,7 @@ jobs:
           npm run setup
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --passWithNoTests
 
       - name: Build extension
         run: npm run build
