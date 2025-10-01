@@ -171,18 +171,17 @@ browser.webRequest.onBeforeRequest.addListener(
     ['blocking']
 );
 
+// Global settings cache to avoid async in blocking listener
+let cachedSettings = { enabled: true }; // Default to enabled
+
 // Enhanced response header checking - PRIMARY INTERCEPTION METHOD
 browser.webRequest.onHeadersReceived.addListener(
-    async (details) => {
+    (details) => {
         try {
             console.log('🦊 onHeadersReceived triggered for:', details.url, 'type:', details.type);
+            console.log('🦊 Extension enabled:', cachedSettings.enabled);
 
-            const settings = await browser.storage.local.get('settings');
-            // Default to enabled if settings don't exist yet
-            const isEnabled = settings.settings?.enabled !== false;
-            console.log('🦊 Extension enabled:', isEnabled, 'settings:', settings.settings);
-
-            if (!isEnabled) {
+            if (!cachedSettings.enabled) {
                 console.log('🦊 Extension disabled, skipping interception');
                 return;
             }
@@ -199,58 +198,9 @@ browser.webRequest.onHeadersReceived.addListener(
             console.log('🦊 Detection result:', detection);
 
             if (detection && details.type === 'main_frame') {
-                console.log('🦊 ✅ Intercepting based on headers:', details.url, detection);
+                console.log('🦊 ✅ Intercepting:', details.url, detection);
 
-                // Try to fetch the content immediately
-                try {
-                    console.log('🦊 Pre-fetching content during header interception...');
-                    const response = await fetch(details.url, {
-                        headers: { 'Accept': '*/*' },
-                        mode: 'cors'
-                    });
-
-                    if (response.ok) {
-                        const content = await response.text();
-                        const contentType = response.headers.get('content-type');
-
-                        // Extract all response headers
-                        const responseHeaders = {};
-                        response.headers.forEach((value, name) => {
-                            responseHeaders[name.toLowerCase()] = value;
-                        });
-
-                        console.log('🦊 Pre-fetch successful, size:', content.length);
-
-                        // Store the fetched content temporarily
-                        const cacheKey = `content_${Date.now()}`;
-                        await browser.storage.local.set({
-                            [cacheKey]: {
-                                content,
-                                contentType,
-                                size: content.length,
-                                timestamp: Date.now(),
-                                headers: responseHeaders
-                            }
-                        });
-
-                        // Create viewer URL with cached content reference
-                        const viewerUrl = browser.runtime.getURL('viewer.html') +
-                                        '#' + encodeURIComponent(JSON.stringify({
-                                            originalUrl: details.url,
-                                            format: detection.format,
-                                            reason: detection.reason,
-                                            timestamp: Date.now(),
-                                            cacheKey: cacheKey
-                                        }));
-
-                        console.log('🦊 Generated viewer URL with cached content:', viewerUrl);
-                        return { redirectUrl: viewerUrl };
-                    }
-                } catch (fetchError) {
-                    console.error('🦊 Pre-fetch failed:', fetchError);
-                }
-
-                // Fallback if fetch fails
+                // Create viewer URL without pre-fetching (can't do async in blocking listener)
                 const viewerUrl = browser.runtime.getURL('viewer.html') +
                                 '#' + encodeURIComponent(JSON.stringify({
                                     originalUrl: details.url,
@@ -260,6 +210,7 @@ browser.webRequest.onHeadersReceived.addListener(
                                     headers: headers
                                 }));
 
+                console.log('🦊 Redirecting to viewer:', viewerUrl);
                 return { redirectUrl: viewerUrl };
             }
         } catch (error) {
@@ -270,16 +221,27 @@ browser.webRequest.onHeadersReceived.addListener(
     ['blocking', 'responseHeaders']
 );
 
-// Initialize settings on install
+// Initialize settings on install and update cache
 browser.runtime.onInstalled.addListener(async () => {
     try {
         const result = await browser.storage.local.get('settings');
         if (!result.settings) {
             await browser.storage.local.set({ settings: DEFAULT_SETTINGS });
+            cachedSettings = DEFAULT_SETTINGS;
             console.log('🦊 Default settings initialized');
+        } else {
+            cachedSettings = result.settings;
         }
     } catch (error) {
         console.error('🦊 Settings initialization failed:', error);
+    }
+});
+
+// Load settings on startup and keep cache updated
+browser.storage.local.get('settings').then(result => {
+    if (result.settings) {
+        cachedSettings = result.settings;
+        console.log('🦊 Settings loaded from storage:', cachedSettings);
     }
 });
 
@@ -297,6 +259,8 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
                 case 'saveSettings':
                     await browser.storage.local.set({ settings: request.settings });
+                    cachedSettings = request.settings; // Update cache
+                    console.log('🦊 Settings saved and cache updated:', cachedSettings);
                     return { success: true };
 
                 case 'trackUsage':
