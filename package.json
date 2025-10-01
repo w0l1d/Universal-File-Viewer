@@ -1,7 +1,7 @@
 {
   "name": "universal-file-viewer",
-  "version": "1.1.0",
-  "description": "Extensible Firefox addon for beautifying and highlighting various file formats",
+  "version": "2.0.0",
+  "description": "🦊 Native Firefox-style viewer for JSON, YAML, XML, CSV and more - feels built into Firefox",
   "author": "Walid Ahdouf",
   "license": "MIT",
   "scripts": {
